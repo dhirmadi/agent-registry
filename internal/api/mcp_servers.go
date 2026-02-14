@@ -15,6 +15,7 @@ import (
 
 	"github.com/agent-smit/agentic-registry/internal/auth"
 	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
+	"github.com/agent-smit/agentic-registry/internal/notify"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
@@ -30,17 +31,19 @@ type MCPServerStoreForAPI interface {
 
 // MCPServersHandler provides HTTP handlers for MCP server endpoints.
 type MCPServersHandler struct {
-	servers MCPServerStoreForAPI
-	audit   AuditStoreForAPI
-	encKey  []byte
+	servers    MCPServerStoreForAPI
+	audit      AuditStoreForAPI
+	encKey     []byte
+	dispatcher notify.EventDispatcher
 }
 
 // NewMCPServersHandler creates a new MCPServersHandler.
-func NewMCPServersHandler(servers MCPServerStoreForAPI, audit AuditStoreForAPI, encKey []byte) *MCPServersHandler {
+func NewMCPServersHandler(servers MCPServerStoreForAPI, audit AuditStoreForAPI, encKey []byte, dispatcher notify.EventDispatcher) *MCPServersHandler {
 	return &MCPServersHandler{
-		servers: servers,
-		audit:   audit,
-		encKey:  encKey,
+		servers:    servers,
+		audit:      audit,
+		encKey:     encKey,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -283,6 +286,7 @@ func (h *MCPServersHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "mcp_server_create", "mcp_server", server.ID.String())
+	h.dispatchEvent(r, "mcp_server.created", "mcp_server", server.ID.String())
 
 	RespondJSON(w, r, http.StatusCreated, toMCPServerResponse(server))
 }
@@ -430,6 +434,7 @@ func (h *MCPServersHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "mcp_server_update", "mcp_server", server.ID.String())
+	h.dispatchEvent(r, "mcp_server.updated", "mcp_server", server.ID.String())
 
 	RespondJSON(w, r, http.StatusOK, toMCPServerResponse(server))
 }
@@ -448,6 +453,7 @@ func (h *MCPServersHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "mcp_server_delete", "mcp_server", serverID.String())
+	h.dispatchEvent(r, "mcp_server.deleted", "mcp_server", serverID.String())
 
 	RespondNoContent(w)
 }
@@ -464,5 +470,19 @@ func (h *MCPServersHandler) auditLog(r *http.Request, action, resourceType, reso
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
+	})
+}
+
+func (h *MCPServersHandler) dispatchEvent(r *http.Request, eventType, resourceType, resourceID string) {
+	if h.dispatcher == nil {
+		return
+	}
+	callerID, _ := auth.UserIDFromContext(r.Context())
+	h.dispatcher.Dispatch(notify.Event{
+		Type:         eventType,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		Timestamp:    time.Now().UTC().Format(time.RFC3339Nano),
+		Actor:        callerID.String(),
 	})
 }

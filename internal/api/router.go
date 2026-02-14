@@ -30,6 +30,11 @@ type RouterConfig struct {
 	TrustRules    *TrustRulesHandler
 	TrustDefaults *TrustDefaultsHandler
 	TriggerRules  *TriggerRulesHandler
+	ModelConfig   *ModelConfigHandler
+	ContextConfig *ContextConfigHandler
+	SignalConfig  *SignalConfigHandler
+	Webhooks      *WebhooksHandler
+	Discovery     *DiscoveryHandler
 	AuthMW        func(http.Handler) http.Handler
 }
 
@@ -163,6 +168,51 @@ func NewRouter(cfg RouterConfig) chi.Router {
 			})
 		}
 
+		// Model Config (admin only for global)
+		if cfg.ModelConfig != nil {
+			r.Route("/model-config", func(r chi.Router) {
+				r.Use(RequireRole("admin"))
+				r.Get("/", cfg.ModelConfig.GetGlobal)
+				r.Put("/", cfg.ModelConfig.UpdateGlobal)
+			})
+		}
+
+		// Context Config (admin only for global)
+		if cfg.ContextConfig != nil {
+			r.Route("/context-config", func(r chi.Router) {
+				r.Use(RequireRole("admin"))
+				r.Get("/", cfg.ContextConfig.GetGlobal)
+				r.Put("/", cfg.ContextConfig.UpdateGlobal)
+			})
+		}
+
+		// Signal Config (admin only)
+		if cfg.SignalConfig != nil {
+			r.Route("/signal-config", func(r chi.Router) {
+				r.Use(RequireRole("admin"))
+				r.Get("/", cfg.SignalConfig.List)
+				r.Put("/{signalId}", cfg.SignalConfig.Update)
+			})
+		}
+
+		// Webhooks (admin only)
+		if cfg.Webhooks != nil {
+			r.Route("/webhooks", func(r chi.Router) {
+				r.Use(RequireRole("admin"))
+				r.Get("/", cfg.Webhooks.List)
+				r.Post("/", cfg.Webhooks.Create)
+				r.Delete("/{webhookId}", cfg.Webhooks.Delete)
+			})
+		}
+
+		// Discovery (viewer+)
+		if cfg.Discovery != nil {
+			r.Group(func(r chi.Router) {
+				r.Use(RequireRole("viewer", "editor", "admin"))
+				r.Get("/discovery", cfg.Discovery.GetDiscovery)
+			})
+		}
+
 		// Workspace-scoped routes
 		r.Route("/workspaces/{workspaceId}", func(r chi.Router) {
 			// Trust Rules (editor+)
@@ -172,6 +222,24 @@ func NewRouter(cfg RouterConfig) chi.Router {
 					r.Get("/", cfg.TrustRules.List)
 					r.Post("/", cfg.TrustRules.Create)
 					r.Delete("/{ruleId}", cfg.TrustRules.Delete)
+				})
+			}
+
+			// Model Config (workspace-scoped, editor+)
+			if cfg.ModelConfig != nil {
+				r.Route("/model-config", func(r chi.Router) {
+					r.Use(RequireRole("editor", "admin"))
+					r.Get("/", cfg.ModelConfig.GetWorkspace)
+					r.Put("/", cfg.ModelConfig.UpdateWorkspace)
+				})
+			}
+
+			// Context Config (workspace-scoped, editor+)
+			if cfg.ContextConfig != nil {
+				r.Route("/context-config", func(r chi.Router) {
+					r.Use(RequireRole("editor", "admin"))
+					r.Get("/", cfg.ContextConfig.GetWorkspace)
+					r.Put("/", cfg.ContextConfig.UpdateWorkspace)
 				})
 			}
 

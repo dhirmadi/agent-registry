@@ -327,7 +327,7 @@ func TestAgentsHandler_Create(t *testing.T) {
 			agentStore := newMockAgentStore()
 			agentStore.createErr = tt.storeErr
 			audit := &mockAuditStoreForAPI{}
-			h := NewAgentsHandler(agentStore, audit)
+			h := NewAgentsHandler(agentStore, audit, nil)
 
 			req := agentRequest(http.MethodPost, "/api/v1/agents", tt.body, tt.role)
 			w := httptest.NewRecorder()
@@ -358,7 +358,7 @@ func TestAgentsHandler_Create(t *testing.T) {
 func TestAgentsHandler_Get(t *testing.T) {
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	testAgent := &store.Agent{
 		ID:             "test_agent",
@@ -411,7 +411,7 @@ func TestAgentsHandler_Get(t *testing.T) {
 func TestAgentsHandler_List(t *testing.T) {
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	// Seed agents
 	for i := 0; i < 3; i++ {
@@ -537,7 +537,7 @@ func TestAgentsHandler_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			agentStore := newMockAgentStore()
 			audit := &mockAuditStoreForAPI{}
-			h := NewAgentsHandler(agentStore, audit)
+			h := NewAgentsHandler(agentStore, audit, nil)
 
 			// Seed agent
 			agentStore.agents["test_agent"] = &store.Agent{
@@ -576,7 +576,7 @@ func TestAgentsHandler_Patch(t *testing.T) {
 
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	agentStore.agents["test_agent"] = &store.Agent{
 		ID:             "test_agent",
@@ -615,7 +615,7 @@ func TestAgentsHandler_Patch(t *testing.T) {
 func TestAgentsHandler_Delete(t *testing.T) {
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	agentStore.agents["test_agent"] = &store.Agent{
 		ID:       "test_agent",
@@ -658,7 +658,7 @@ func TestAgentsHandler_Delete(t *testing.T) {
 func TestAgentsHandler_ListVersions(t *testing.T) {
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	agentStore.agents["test_agent"] = &store.Agent{
 		ID: "test_agent", Name: "Test Agent", Version: 2,
@@ -689,7 +689,7 @@ func TestAgentsHandler_ListVersions(t *testing.T) {
 func TestAgentsHandler_Rollback(t *testing.T) {
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	agentStore.agents["test_agent"] = &store.Agent{
 		ID:             "test_agent",
@@ -763,7 +763,7 @@ func TestAgentsHandler_Rollback(t *testing.T) {
 func TestAgentsHandler_DerivedFields(t *testing.T) {
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	agentStore.agents["derived_test"] = &store.Agent{
 		ID:   "derived_test",
@@ -824,7 +824,7 @@ func TestAgentsHandler_DerivedFields(t *testing.T) {
 func TestAgentsHandler_ListIncludeTools(t *testing.T) {
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	agentStore.agents["tools_test"] = &store.Agent{
 		ID:             "tools_test",
@@ -893,7 +893,7 @@ func TestAgentsHandler_Create_RejectsInvalidToolSource(t *testing.T) {
 
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	invalidSources := []struct {
 		name   string
@@ -941,7 +941,7 @@ func TestAgentsHandler_Create_RejectsToolMissingServerLabel(t *testing.T) {
 
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	body := map[string]interface{}{
 		"id":   "mcp_no_label",
@@ -970,7 +970,7 @@ func TestAgentsHandler_Create_RejectsToolMissingServerLabel(t *testing.T) {
 func TestAgentsHandler_RoleAccess(t *testing.T) {
 	agentStore := newMockAgentStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewAgentsHandler(agentStore, audit)
+	h := NewAgentsHandler(agentStore, audit, nil)
 
 	agentStore.agents["test_agent"] = &store.Agent{
 		ID:             "test_agent",

@@ -217,7 +217,7 @@ func TestPromptsHandler_Create(t *testing.T) {
 			promptStore := newMockPromptStore()
 			agentLookup := &mockAgentLookupForPrompts{agents: map[string]bool{"test_agent": true}}
 			audit := &mockAuditStoreForAPI{}
-			h := NewPromptsHandler(promptStore, agentLookup, audit)
+			h := NewPromptsHandler(promptStore, agentLookup, audit, nil)
 
 			req := agentRequest(http.MethodPost, "/api/v1/agents/"+tt.agentID+"/prompts", tt.body, "editor")
 			req = withChiParam(req, "agentId", tt.agentID)
@@ -236,7 +236,7 @@ func TestPromptsHandler_CreateAutoVersions(t *testing.T) {
 	promptStore := newMockPromptStore()
 	agentLookup := &mockAgentLookupForPrompts{agents: map[string]bool{"test_agent": true}}
 	audit := &mockAuditStoreForAPI{}
-	h := NewPromptsHandler(promptStore, agentLookup, audit)
+	h := NewPromptsHandler(promptStore, agentLookup, audit, nil)
 
 	// Create 3 prompts sequentially
 	for i := 1; i <= 3; i++ {
@@ -278,7 +278,7 @@ func TestPromptsHandler_GetActive(t *testing.T) {
 	promptStore := newMockPromptStore()
 	agentLookup := &mockAgentLookupForPrompts{agents: map[string]bool{"test_agent": true}}
 	audit := &mockAuditStoreForAPI{}
-	h := NewPromptsHandler(promptStore, agentLookup, audit)
+	h := NewPromptsHandler(promptStore, agentLookup, audit, nil)
 
 	// Create a prompt
 	p := &store.Prompt{
@@ -331,7 +331,7 @@ func TestPromptsHandler_GetByID(t *testing.T) {
 	promptStore := newMockPromptStore()
 	agentLookup := &mockAgentLookupForPrompts{agents: map[string]bool{"test_agent": true}}
 	audit := &mockAuditStoreForAPI{}
-	h := NewPromptsHandler(promptStore, agentLookup, audit)
+	h := NewPromptsHandler(promptStore, agentLookup, audit, nil)
 
 	promptID := uuid.New()
 	promptStore.prompts[promptID] = &store.Prompt{
@@ -390,7 +390,7 @@ func TestPromptsHandler_Activate(t *testing.T) {
 	promptStore := newMockPromptStore()
 	agentLookup := &mockAgentLookupForPrompts{agents: map[string]bool{"test_agent": true}}
 	audit := &mockAuditStoreForAPI{}
-	h := NewPromptsHandler(promptStore, agentLookup, audit)
+	h := NewPromptsHandler(promptStore, agentLookup, audit, nil)
 
 	// Create two prompts
 	p1 := &store.Prompt{
@@ -434,7 +434,7 @@ func TestPromptsHandler_Rollback(t *testing.T) {
 	promptStore := newMockPromptStore()
 	agentLookup := &mockAgentLookupForPrompts{agents: map[string]bool{"test_agent": true}}
 	audit := &mockAuditStoreForAPI{}
-	h := NewPromptsHandler(promptStore, agentLookup, audit)
+	h := NewPromptsHandler(promptStore, agentLookup, audit, nil)
 
 	// Seed two versions
 	p1ID := uuid.New()
@@ -492,7 +492,7 @@ func TestPromptsHandler_RollbackCreatesN1(t *testing.T) {
 	promptStore := newMockPromptStore()
 	agentLookup := &mockAgentLookupForPrompts{agents: map[string]bool{"test_agent": true}}
 	audit := &mockAuditStoreForAPI{}
-	h := NewPromptsHandler(promptStore, agentLookup, audit)
+	h := NewPromptsHandler(promptStore, agentLookup, audit, nil)
 
 	// Seed two versions
 	p1ID := uuid.New()
@@ -545,7 +545,7 @@ func TestPromptsHandler_List(t *testing.T) {
 	promptStore := newMockPromptStore()
 	agentLookup := &mockAgentLookupForPrompts{agents: map[string]bool{"test_agent": true}}
 	audit := &mockAuditStoreForAPI{}
-	h := NewPromptsHandler(promptStore, agentLookup, audit)
+	h := NewPromptsHandler(promptStore, agentLookup, audit, nil)
 
 	// Seed prompts
 	for i := 1; i <= 3; i++ {

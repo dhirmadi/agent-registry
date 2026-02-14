@@ -100,6 +100,16 @@ func (s *AgentStore) Create(ctx context.Context, agent *Agent) error {
 	return nil
 }
 
+// CountAll returns the total number of agents in the database.
+func (s *AgentStore) CountAll(ctx context.Context) (int, error) {
+	var count int
+	query := "SELECT COUNT(*) FROM agents"
+	if err := s.pool.QueryRow(ctx, query).Scan(&count); err != nil {
+		return 0, fmt.Errorf("counting all agents: %w", err)
+	}
+	return count, nil
+}
+
 // GetByID retrieves an agent by ID.
 func (s *AgentStore) GetByID(ctx context.Context, id string) (*Agent, error) {
 	query := `

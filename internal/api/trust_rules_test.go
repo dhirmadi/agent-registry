@@ -122,7 +122,7 @@ func TestTrustRulesHandler_Create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ruleStore := newMockTrustRuleStore()
 			audit := &mockAuditStoreForAPI{}
-			h := NewTrustRulesHandler(ruleStore, audit)
+			h := NewTrustRulesHandler(ruleStore, audit, nil)
 
 			req := adminRequest(http.MethodPost, "/api/v1/workspaces/"+wsID.String()+"/trust-rules", tt.body)
 			w := httptest.NewRecorder()
@@ -149,7 +149,7 @@ func TestTrustRulesHandler_Upsert(t *testing.T) {
 	wsID := uuid.New()
 	ruleStore := newMockTrustRuleStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewTrustRulesHandler(ruleStore, audit)
+	h := NewTrustRulesHandler(ruleStore, audit, nil)
 
 	body := map[string]interface{}{
 		"tool_pattern": "read_*",
@@ -196,7 +196,7 @@ func TestTrustRulesHandler_List(t *testing.T) {
 	otherWsID := uuid.New()
 	ruleStore := newMockTrustRuleStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewTrustRulesHandler(ruleStore, audit)
+	h := NewTrustRulesHandler(ruleStore, audit, nil)
 
 	// Add rules in different workspaces
 	ruleStore.Upsert(context.Background(), &store.TrustRule{
@@ -261,7 +261,7 @@ func TestTrustRulesHandler_Create_RejectsInvalidPattern(t *testing.T) {
 			t.Parallel()
 			ruleStore := newMockTrustRuleStore()
 			audit := &mockAuditStoreForAPI{}
-			h := NewTrustRulesHandler(ruleStore, audit)
+			h := NewTrustRulesHandler(ruleStore, audit, nil)
 
 			body := map[string]interface{}{
 				"tool_pattern": tt.pattern,
@@ -288,7 +288,7 @@ func TestTrustRulesHandler_Delete(t *testing.T) {
 	wsID := uuid.New()
 	ruleStore := newMockTrustRuleStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewTrustRulesHandler(ruleStore, audit)
+	h := NewTrustRulesHandler(ruleStore, audit, nil)
 
 	rule := &store.TrustRule{
 		WorkspaceID: wsID,

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -19,6 +20,8 @@ import (
 	internalAuth "github.com/agent-smit/agentic-registry/internal/auth"
 	"github.com/agent-smit/agentic-registry/internal/config"
 	"github.com/agent-smit/agentic-registry/internal/db"
+	"github.com/agent-smit/agentic-registry/internal/notify"
+	"github.com/agent-smit/agentic-registry/internal/seed"
 	"github.com/agent-smit/agentic-registry/internal/store"
 	"github.com/agent-smit/agentic-registry/internal/telemetry"
 )
@@ -99,10 +102,28 @@ func run() error {
 	trustRuleStore := store.NewTrustRuleStore(pool)
 	trustDefaultStore := store.NewTrustDefaultStore(pool)
 	triggerRuleStore := store.NewTriggerRuleStore(pool)
+	modelConfigStore := store.NewModelConfigStore(pool)
+	contextConfigStore := store.NewContextConfigStore(pool)
+	signalConfigStore := store.NewSignalConfigStore(pool)
+	webhookStore := store.NewWebhookStore(pool)
+
+	// Create webhook dispatcher
+	dispatcher := notify.NewDispatcher(&subscriptionLoaderAdapter{store: webhookStore}, notify.Config{
+		Workers:    cfg.WebhookWorkers,
+		MaxRetries: cfg.WebhookRetries,
+		Timeout:    time.Duration(cfg.WebhookTimeoutS) * time.Second,
+	})
+	dispatcher.Start()
+	defer dispatcher.Stop()
 
 	// Seed default admin
 	if err := seedDefaultAdmin(ctx, userStore); err != nil {
 		log.Printf("warning: failed to seed default admin: %v", err)
+	}
+
+	// Seed default agents
+	if err := seed.SeedAgents(ctx, agentStore); err != nil {
+		log.Printf("warning: failed to seed default agents: %v", err)
 	}
 
 	// Session cleanup goroutine
@@ -161,15 +182,20 @@ func run() error {
 	health := &api.HealthHandler{DB: pool}
 	usersHandler := api.NewUsersHandler(userStore, oauthConnStore, auditStore)
 	apiKeysHandler := api.NewAPIKeysHandler(apiKeyStore, auditStore)
-	agentsHandler := api.NewAgentsHandler(agentStore, auditStore)
-	promptsHandler := api.NewPromptsHandler(promptStore, agentStore, auditStore)
+	agentsHandler := api.NewAgentsHandler(agentStore, auditStore, dispatcher)
+	promptsHandler := api.NewPromptsHandler(promptStore, agentStore, auditStore, dispatcher)
 
 	// Encryption key for MCP server credentials
 	encKey := []byte(cfg.CredentialEncryptionKey)
-	mcpServersHandler := api.NewMCPServersHandler(mcpServerStore, auditStore, encKey)
-	trustRulesHandler := api.NewTrustRulesHandler(trustRuleStore, auditStore)
-	trustDefaultsHandler := api.NewTrustDefaultsHandler(trustDefaultStore, auditStore)
-	triggerRulesHandler := api.NewTriggerRulesHandler(triggerRuleStore, auditStore, &agentExistsAdapter{store: agentStore})
+	mcpServersHandler := api.NewMCPServersHandler(mcpServerStore, auditStore, encKey, dispatcher)
+	trustRulesHandler := api.NewTrustRulesHandler(trustRuleStore, auditStore, dispatcher)
+	trustDefaultsHandler := api.NewTrustDefaultsHandler(trustDefaultStore, auditStore, dispatcher)
+	triggerRulesHandler := api.NewTriggerRulesHandler(triggerRuleStore, auditStore, &agentExistsAdapter{store: agentStore}, dispatcher)
+	modelConfigHandler := api.NewModelConfigHandler(modelConfigStore, auditStore, dispatcher)
+	contextConfigHandler := api.NewContextConfigHandler(contextConfigStore, auditStore, dispatcher)
+	signalConfigHandler := api.NewSignalConfigHandler(signalConfigStore, auditStore, dispatcher)
+	webhooksHandler := api.NewWebhooksHandler(webhookStore, auditStore)
+	discoveryHandler := api.NewDiscoveryHandler(agentStore, mcpServerStore, trustDefaultStore, modelConfigStore, contextConfigStore, signalConfigStore)
 
 	// Set up router
 	router := api.NewRouter(api.RouterConfig{
@@ -183,6 +209,11 @@ func run() error {
 		TrustRules:    trustRulesHandler,
 		TrustDefaults: trustDefaultsHandler,
 		TriggerRules:  triggerRulesHandler,
+		ModelConfig:   modelConfigHandler,
+		ContextConfig: contextConfigHandler,
+		SignalConfig:  signalConfigHandler,
+		Webhooks:      webhooksHandler,
+		Discovery:     discoveryHandler,
 		AuthMW:        authMW,
 	})
 
@@ -620,4 +651,30 @@ func containsStr(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// subscriptionLoaderAdapter bridges store.WebhookStore to notify.SubscriptionLoader.
+type subscriptionLoaderAdapter struct {
+	store *store.WebhookStore
+}
+
+func (a *subscriptionLoaderAdapter) ListActive(ctx context.Context) ([]notify.Subscription, error) {
+	subs, err := a.store.ListActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]notify.Subscription, len(subs))
+	for i, s := range subs {
+		var events []string
+		if len(s.Events) > 0 {
+			json.Unmarshal(s.Events, &events)
+		}
+		result[i] = notify.Subscription{
+			ID:     s.ID,
+			URL:    s.URL,
+			Secret: s.Secret,
+			Events: events,
+		}
+	}
+	return result, nil
 }

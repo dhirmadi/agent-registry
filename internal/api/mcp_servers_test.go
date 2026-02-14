@@ -171,7 +171,7 @@ func TestMCPServersHandler_Create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mcpStore := newMockMCPServerStore()
 			audit := &mockAuditStoreForAPI{}
-			h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+			h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 			req := adminRequest(http.MethodPost, "/api/v1/mcp-servers", tt.body)
 			w := httptest.NewRecorder()
@@ -208,7 +208,7 @@ func TestMCPServersHandler_List_NoCredential(t *testing.T) {
 
 	mcpStore := newMockMCPServerStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+	h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 	// Seed a server with a credential
 	mcpStore.servers[uuid.New()] = &store.MCPServer{
@@ -252,7 +252,7 @@ func TestMCPServersHandler_Get(t *testing.T) {
 
 	mcpStore := newMockMCPServerStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+	h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 	serverID := uuid.New()
 	mcpStore.servers[serverID] = &store.MCPServer{
@@ -321,7 +321,7 @@ func TestMCPServersHandler_Update(t *testing.T) {
 
 	mcpStore := newMockMCPServerStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+	h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 	serverID := uuid.New()
 	updatedAt := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -400,7 +400,7 @@ func TestMCPServersHandler_Delete(t *testing.T) {
 
 	mcpStore := newMockMCPServerStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+	h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 	serverID := uuid.New()
 	mcpStore.servers[serverID] = &store.MCPServer{
@@ -483,7 +483,7 @@ func TestMCPServersHandler_Create_RejectsInternalEndpoint(t *testing.T) {
 			t.Parallel()
 			mcpStore := newMockMCPServerStore()
 			audit := &mockAuditStoreForAPI{}
-			h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+			h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 			body := map[string]interface{}{
 				"label":    "ssrf-test-" + tt.name,
@@ -531,7 +531,7 @@ func TestMCPServersHandler_Create_RejectsInvalidScheme(t *testing.T) {
 			t.Parallel()
 			mcpStore := newMockMCPServerStore()
 			audit := &mockAuditStoreForAPI{}
-			h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+			h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 			body := map[string]interface{}{
 				"label":    "scheme-test-" + tt.name,
@@ -575,7 +575,7 @@ func TestMCPServersHandler_Create_RejectsInvalidCircuitBreaker(t *testing.T) {
 			t.Parallel()
 			mcpStore := newMockMCPServerStore()
 			audit := &mockAuditStoreForAPI{}
-			h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+			h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 			body := map[string]interface{}{
 				"label":           "cb-test-" + tt.name,
@@ -618,7 +618,7 @@ func TestMCPServersHandler_Create_RejectsInvalidDiscoveryInterval(t *testing.T) 
 			t.Parallel()
 			mcpStore := newMockMCPServerStore()
 			audit := &mockAuditStoreForAPI{}
-			h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+			h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 			body := map[string]interface{}{
 				"label":              "interval-test-" + tt.name,
@@ -648,7 +648,7 @@ func TestMCPServersHandler_Create_RejectsOversizedPayload(t *testing.T) {
 
 	mcpStore := newMockMCPServerStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+	h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 	// Create a circuit_breaker with 10KB of data
 	largeData := make([]byte, 10*1024)
@@ -685,7 +685,7 @@ func TestMCPServersHandler_Update_ValidatesEndpoint(t *testing.T) {
 
 	mcpStore := newMockMCPServerStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+	h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 	serverID := uuid.New()
 	updatedAt := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -743,7 +743,7 @@ func TestMCPServersHandler_DuplicateLabel(t *testing.T) {
 
 	mcpStore := newMockMCPServerStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewMCPServersHandler(mcpStore, audit, testEncKey)
+	h := NewMCPServersHandler(mcpStore, audit, testEncKey, nil)
 
 	body := map[string]interface{}{
 		"label":    "dup-label",

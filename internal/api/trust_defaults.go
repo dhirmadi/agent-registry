@@ -11,6 +11,7 @@ import (
 
 	"github.com/agent-smit/agentic-registry/internal/auth"
 	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
+	"github.com/agent-smit/agentic-registry/internal/notify"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
@@ -23,15 +24,17 @@ type TrustDefaultStoreForAPI interface {
 
 // TrustDefaultsHandler provides HTTP handlers for trust default endpoints.
 type TrustDefaultsHandler struct {
-	defaults TrustDefaultStoreForAPI
-	audit    AuditStoreForAPI
+	defaults   TrustDefaultStoreForAPI
+	audit      AuditStoreForAPI
+	dispatcher notify.EventDispatcher
 }
 
 // NewTrustDefaultsHandler creates a new TrustDefaultsHandler.
-func NewTrustDefaultsHandler(defaults TrustDefaultStoreForAPI, audit AuditStoreForAPI) *TrustDefaultsHandler {
+func NewTrustDefaultsHandler(defaults TrustDefaultStoreForAPI, audit AuditStoreForAPI, dispatcher notify.EventDispatcher) *TrustDefaultsHandler {
 	return &TrustDefaultsHandler{
-		defaults: defaults,
-		audit:    audit,
+		defaults:   defaults,
+		audit:      audit,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -101,6 +104,7 @@ func (h *TrustDefaultsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "trust_default_update", "trust_default", d.ID.String())
+	h.dispatchEvent(r, "trust_default.changed", "trust_default", d.ID.String())
 
 	RespondJSON(w, r, http.StatusOK, d)
 }
@@ -117,5 +121,19 @@ func (h *TrustDefaultsHandler) auditLog(r *http.Request, action, resourceType, r
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
+	})
+}
+
+func (h *TrustDefaultsHandler) dispatchEvent(r *http.Request, eventType, resourceType, resourceID string) {
+	if h.dispatcher == nil {
+		return
+	}
+	callerID, _ := auth.UserIDFromContext(r.Context())
+	h.dispatcher.Dispatch(notify.Event{
+		Type:         eventType,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		Timestamp:    time.Now().UTC().Format(time.RFC3339Nano),
+		Actor:        callerID.String(),
 	})
 }

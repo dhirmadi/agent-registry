@@ -198,7 +198,7 @@ func TestTriggerRulesHandler_Create(t *testing.T) {
 			triggerStore := newMockTriggerRuleStore()
 			audit := &mockAuditStoreForAPI{}
 			agentLookup := &mockAgentExistenceChecker{agents: tt.agents}
-			h := NewTriggerRulesHandler(triggerStore, audit, agentLookup)
+			h := NewTriggerRulesHandler(triggerStore, audit, agentLookup, nil)
 
 			req := adminRequest(http.MethodPost, "/api/v1/workspaces/"+wsID.String()+"/trigger-rules", tt.body)
 			w := httptest.NewRecorder()
@@ -226,7 +226,7 @@ func TestTriggerRulesHandler_Get(t *testing.T) {
 	triggerStore := newMockTriggerRuleStore()
 	audit := &mockAuditStoreForAPI{}
 	agentLookup := &mockAgentExistenceChecker{agents: map[string]bool{}}
-	h := NewTriggerRulesHandler(triggerStore, audit, agentLookup)
+	h := NewTriggerRulesHandler(triggerStore, audit, agentLookup, nil)
 
 	triggerID := uuid.New()
 	triggerStore.rules[triggerID] = &store.TriggerRule{
@@ -288,7 +288,7 @@ func TestTriggerRulesHandler_List(t *testing.T) {
 	triggerStore := newMockTriggerRuleStore()
 	audit := &mockAuditStoreForAPI{}
 	agentLookup := &mockAgentExistenceChecker{agents: map[string]bool{}}
-	h := NewTriggerRulesHandler(triggerStore, audit, agentLookup)
+	h := NewTriggerRulesHandler(triggerStore, audit, agentLookup, nil)
 
 	// Add triggers in different workspaces
 	for i := 0; i < 3; i++ {
@@ -342,7 +342,7 @@ func TestTriggerRulesHandler_Update(t *testing.T) {
 	triggerStore := newMockTriggerRuleStore()
 	audit := &mockAuditStoreForAPI{}
 	agentLookup := &mockAgentExistenceChecker{agents: map[string]bool{"agent-1": true, "agent-2": true}}
-	h := NewTriggerRulesHandler(triggerStore, audit, agentLookup)
+	h := NewTriggerRulesHandler(triggerStore, audit, agentLookup, nil)
 
 	triggerID := uuid.New()
 	updatedAt := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -430,7 +430,7 @@ func TestTriggerRulesHandler_Delete(t *testing.T) {
 	triggerStore := newMockTriggerRuleStore()
 	audit := &mockAuditStoreForAPI{}
 	agentLookup := &mockAgentExistenceChecker{agents: map[string]bool{}}
-	h := NewTriggerRulesHandler(triggerStore, audit, agentLookup)
+	h := NewTriggerRulesHandler(triggerStore, audit, agentLookup, nil)
 
 	triggerID := uuid.New()
 	triggerStore.rules[triggerID] = &store.TriggerRule{
@@ -497,7 +497,7 @@ func TestTriggerRulesHandler_ValidEventTypes(t *testing.T) {
 			triggerStore := newMockTriggerRuleStore()
 			audit := &mockAuditStoreForAPI{}
 			agentLookup := &mockAgentExistenceChecker{agents: map[string]bool{"agent-1": true}}
-			h := NewTriggerRulesHandler(triggerStore, audit, agentLookup)
+			h := NewTriggerRulesHandler(triggerStore, audit, agentLookup, nil)
 
 			body := map[string]interface{}{
 				"name":       "Test " + eventType,
@@ -537,7 +537,7 @@ func TestTriggerRulesHandler_ValidCronExpressions(t *testing.T) {
 			triggerStore := newMockTriggerRuleStore()
 			audit := &mockAuditStoreForAPI{}
 			agentLookup := &mockAgentExistenceChecker{agents: map[string]bool{"agent-1": true}}
-			h := NewTriggerRulesHandler(triggerStore, audit, agentLookup)
+			h := NewTriggerRulesHandler(triggerStore, audit, agentLookup, nil)
 
 			body := map[string]interface{}{
 				"name":       "Scheduled " + cron,

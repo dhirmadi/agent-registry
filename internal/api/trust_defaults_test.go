@@ -67,7 +67,7 @@ func (m *mockTrustDefaultStore) Update(_ context.Context, d *store.TrustDefault)
 func TestTrustDefaultsHandler_List(t *testing.T) {
 	defaultStore := newMockTrustDefaultStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewTrustDefaultsHandler(defaultStore, audit)
+	h := NewTrustDefaultsHandler(defaultStore, audit, nil)
 
 	// Seed defaults
 	ids := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
@@ -117,7 +117,7 @@ func TestTrustDefaultsHandler_List(t *testing.T) {
 func TestTrustDefaultsHandler_Update(t *testing.T) {
 	defaultStore := newMockTrustDefaultStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewTrustDefaultsHandler(defaultStore, audit)
+	h := NewTrustDefaultsHandler(defaultStore, audit, nil)
 
 	defaultID := uuid.New()
 	updatedAt := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -185,7 +185,7 @@ func TestTrustDefaultsHandler_Update(t *testing.T) {
 func TestTrustDefaultsHandler_Update_ConflictOnStaleEtag(t *testing.T) {
 	defaultStore := newMockTrustDefaultStore()
 	audit := &mockAuditStoreForAPI{}
-	h := NewTrustDefaultsHandler(defaultStore, audit)
+	h := NewTrustDefaultsHandler(defaultStore, audit, nil)
 
 	defaultID := uuid.New()
 	updatedAt := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)

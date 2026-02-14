@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/go-chi/chi/v5"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/agent-smit/agentic-registry/internal/auth"
 	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
+	"github.com/agent-smit/agentic-registry/internal/notify"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
@@ -25,15 +27,17 @@ type TrustRuleStoreForAPI interface {
 
 // TrustRulesHandler provides HTTP handlers for trust rule endpoints.
 type TrustRulesHandler struct {
-	rules TrustRuleStoreForAPI
-	audit AuditStoreForAPI
+	rules      TrustRuleStoreForAPI
+	audit      AuditStoreForAPI
+	dispatcher notify.EventDispatcher
 }
 
 // NewTrustRulesHandler creates a new TrustRulesHandler.
-func NewTrustRulesHandler(rules TrustRuleStoreForAPI, audit AuditStoreForAPI) *TrustRulesHandler {
+func NewTrustRulesHandler(rules TrustRuleStoreForAPI, audit AuditStoreForAPI, dispatcher notify.EventDispatcher) *TrustRulesHandler {
 	return &TrustRulesHandler{
-		rules: rules,
-		audit: audit,
+		rules:      rules,
+		audit:      audit,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -121,6 +125,7 @@ func (h *TrustRulesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "trust_rule_upsert", "trust_rule", rule.ID.String())
+	h.dispatchEvent(r, "trust_rule.changed", "trust_rule", rule.ID.String())
 
 	RespondJSON(w, r, http.StatusCreated, rule)
 }
@@ -163,6 +168,7 @@ func (h *TrustRulesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "trust_rule_delete", "trust_rule", ruleID.String())
+	h.dispatchEvent(r, "trust_rule.changed", "trust_rule", ruleID.String())
 
 	RespondNoContent(w)
 }
@@ -179,5 +185,19 @@ func (h *TrustRulesHandler) auditLog(r *http.Request, action, resourceType, reso
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
+	})
+}
+
+func (h *TrustRulesHandler) dispatchEvent(r *http.Request, eventType, resourceType, resourceID string) {
+	if h.dispatcher == nil {
+		return
+	}
+	callerID, _ := auth.UserIDFromContext(r.Context())
+	h.dispatcher.Dispatch(notify.Event{
+		Type:         eventType,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		Timestamp:    time.Now().UTC().Format(time.RFC3339Nano),
+		Actor:        callerID.String(),
 	})
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/agent-smit/agentic-registry/internal/auth"
 	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
+	"github.com/agent-smit/agentic-registry/internal/notify"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
@@ -33,15 +34,17 @@ type AgentStoreForAPI interface {
 
 // AgentsHandler provides HTTP handlers for agent management endpoints.
 type AgentsHandler struct {
-	agents AgentStoreForAPI
-	audit  AuditStoreForAPI
+	agents     AgentStoreForAPI
+	audit      AuditStoreForAPI
+	dispatcher notify.EventDispatcher
 }
 
 // NewAgentsHandler creates a new AgentsHandler.
-func NewAgentsHandler(agents AgentStoreForAPI, audit AuditStoreForAPI) *AgentsHandler {
+func NewAgentsHandler(agents AgentStoreForAPI, audit AuditStoreForAPI, dispatcher notify.EventDispatcher) *AgentsHandler {
 	return &AgentsHandler{
-		agents: agents,
-		audit:  audit,
+		agents:     agents,
+		audit:      audit,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -221,6 +224,7 @@ func (h *AgentsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "agent_create", "agent", agent.ID)
+	h.dispatchEvent(r, "agent.created", "agent", agent.ID)
 
 	RespondJSON(w, r, http.StatusCreated, toAgentAPIResponse(agent, true))
 }
@@ -344,6 +348,7 @@ func (h *AgentsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "agent_update", "agent", agentID)
+	h.dispatchEvent(r, "agent.updated", "agent", agentID)
 
 	RespondJSON(w, r, http.StatusOK, toAgentAPIResponse(existing, true))
 }
@@ -387,6 +392,7 @@ func (h *AgentsHandler) PatchAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "agent_update", "agent", agentID)
+	h.dispatchEvent(r, "agent.updated", "agent", agentID)
 
 	RespondJSON(w, r, http.StatusOK, toAgentAPIResponse(agent, true))
 }
@@ -405,6 +411,7 @@ func (h *AgentsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "agent_delete", "agent", agentID)
+	h.dispatchEvent(r, "agent.deleted", "agent", agentID)
 
 	RespondNoContent(w)
 }
@@ -485,6 +492,7 @@ func (h *AgentsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "agent_rollback", "agent", agentID)
+	h.dispatchEvent(r, "agent.rolled_back", "agent", agentID)
 
 	RespondJSON(w, r, http.StatusOK, toAgentAPIResponse(agent, true))
 }
@@ -501,6 +509,20 @@ func (h *AgentsHandler) auditLog(r *http.Request, action, resourceType, resource
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
+	})
+}
+
+func (h *AgentsHandler) dispatchEvent(r *http.Request, eventType, resourceType, resourceID string) {
+	if h.dispatcher == nil {
+		return
+	}
+	callerID, _ := auth.UserIDFromContext(r.Context())
+	h.dispatcher.Dispatch(notify.Event{
+		Type:         eventType,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		Timestamp:    time.Now().UTC().Format(time.RFC3339Nano),
+		Actor:        callerID.String(),
 	})
 }
 

@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/agent-smit/agentic-registry/internal/auth"
 	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
+	"github.com/agent-smit/agentic-registry/internal/notify"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
@@ -37,17 +39,19 @@ type AgentLookupForPrompts interface {
 
 // PromptsHandler provides HTTP handlers for prompt management endpoints.
 type PromptsHandler struct {
-	prompts PromptStoreForAPI
-	agents  AgentLookupForPrompts
-	audit   AuditStoreForAPI
+	prompts    PromptStoreForAPI
+	agents     AgentLookupForPrompts
+	audit      AuditStoreForAPI
+	dispatcher notify.EventDispatcher
 }
 
 // NewPromptsHandler creates a new PromptsHandler.
-func NewPromptsHandler(prompts PromptStoreForAPI, agents AgentLookupForPrompts, audit AuditStoreForAPI) *PromptsHandler {
+func NewPromptsHandler(prompts PromptStoreForAPI, agents AgentLookupForPrompts, audit AuditStoreForAPI, dispatcher notify.EventDispatcher) *PromptsHandler {
 	return &PromptsHandler{
-		prompts: prompts,
-		agents:  agents,
-		audit:   audit,
+		prompts:    prompts,
+		agents:     agents,
+		audit:      audit,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -166,6 +170,7 @@ func (h *PromptsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "prompt_create", "prompt", prompt.ID.String())
+	h.dispatchEvent(r, "prompt.created", "prompt", prompt.ID.String())
 
 	RespondJSON(w, r, http.StatusCreated, prompt)
 }
@@ -186,6 +191,7 @@ func (h *PromptsHandler) Activate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "prompt_activate", "prompt", promptIDStr)
+	h.dispatchEvent(r, "prompt.activated", "prompt", promptIDStr)
 
 	RespondJSON(w, r, http.StatusOK, prompt)
 }
@@ -222,6 +228,7 @@ func (h *PromptsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "prompt_rollback", "prompt", prompt.ID.String())
+	h.dispatchEvent(r, "prompt.rolled_back", "prompt", prompt.ID.String())
 
 	RespondJSON(w, r, http.StatusOK, prompt)
 }
@@ -238,5 +245,19 @@ func (h *PromptsHandler) auditLog(r *http.Request, action, resourceType, resourc
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
+	})
+}
+
+func (h *PromptsHandler) dispatchEvent(r *http.Request, eventType, resourceType, resourceID string) {
+	if h.dispatcher == nil {
+		return
+	}
+	callerID, _ := auth.UserIDFromContext(r.Context())
+	h.dispatcher.Dispatch(notify.Event{
+		Type:         eventType,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		Timestamp:    time.Now().UTC().Format(time.RFC3339Nano),
+		Actor:        callerID.String(),
 	})
 }

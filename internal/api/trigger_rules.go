@@ -12,6 +12,7 @@ import (
 
 	"github.com/agent-smit/agentic-registry/internal/auth"
 	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
+	"github.com/agent-smit/agentic-registry/internal/notify"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
@@ -31,17 +32,19 @@ type AgentLookupForAPI interface {
 
 // TriggerRulesHandler provides HTTP handlers for trigger rule endpoints.
 type TriggerRulesHandler struct {
-	triggers TriggerRuleStoreForAPI
-	audit    AuditStoreForAPI
-	agents   AgentLookupForAPI
+	triggers   TriggerRuleStoreForAPI
+	audit      AuditStoreForAPI
+	agents     AgentLookupForAPI
+	dispatcher notify.EventDispatcher
 }
 
 // NewTriggerRulesHandler creates a new TriggerRulesHandler.
-func NewTriggerRulesHandler(triggers TriggerRuleStoreForAPI, audit AuditStoreForAPI, agents AgentLookupForAPI) *TriggerRulesHandler {
+func NewTriggerRulesHandler(triggers TriggerRuleStoreForAPI, audit AuditStoreForAPI, agents AgentLookupForAPI, dispatcher notify.EventDispatcher) *TriggerRulesHandler {
 	return &TriggerRulesHandler{
-		triggers: triggers,
-		audit:    audit,
-		agents:   agents,
+		triggers:   triggers,
+		audit:      audit,
+		agents:     agents,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -152,6 +155,7 @@ func (h *TriggerRulesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "trigger_rule_create", "trigger_rule", rule.ID.String())
+	h.dispatchEvent(r, "trigger_rule.changed", "trigger_rule", rule.ID.String())
 
 	RespondJSON(w, r, http.StatusCreated, rule)
 }
@@ -298,6 +302,7 @@ func (h *TriggerRulesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "trigger_rule_update", "trigger_rule", rule.ID.String())
+	h.dispatchEvent(r, "trigger_rule.changed", "trigger_rule", rule.ID.String())
 
 	RespondJSON(w, r, http.StatusOK, rule)
 }
@@ -316,6 +321,7 @@ func (h *TriggerRulesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.auditLog(r, "trigger_rule_delete", "trigger_rule", triggerID.String())
+	h.dispatchEvent(r, "trigger_rule.changed", "trigger_rule", triggerID.String())
 
 	RespondNoContent(w)
 }
@@ -332,5 +338,19 @@ func (h *TriggerRulesHandler) auditLog(r *http.Request, action, resourceType, re
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
+	})
+}
+
+func (h *TriggerRulesHandler) dispatchEvent(r *http.Request, eventType, resourceType, resourceID string) {
+	if h.dispatcher == nil {
+		return
+	}
+	callerID, _ := auth.UserIDFromContext(r.Context())
+	h.dispatcher.Dispatch(notify.Event{
+		Type:         eventType,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		Timestamp:    time.Now().UTC().Format(time.RFC3339Nano),
+		Actor:        callerID.String(),
 	})
 }
