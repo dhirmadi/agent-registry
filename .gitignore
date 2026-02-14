@@ -29,6 +29,17 @@ go.work.sum
 
 # Editor/IDE
 # .idea/
-# .vscode/
+.vscode/
 .specstory
 .cursorindexingignore
+
+# Node
+node_modules/
+web/node_modules/
+
+# Build artifacts (web/dist/ is checked in as placeholder for go:embed,
+# but the full production build is generated at Docker build time)
+web/dist/assets/
+
+# Vitest
+.vite/

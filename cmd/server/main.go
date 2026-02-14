@@ -24,6 +24,7 @@ import (
 	"github.com/agent-smit/agentic-registry/internal/seed"
 	"github.com/agent-smit/agentic-registry/internal/store"
 	"github.com/agent-smit/agentic-registry/internal/telemetry"
+	"github.com/agent-smit/agentic-registry/web"
 )
 
 func main() {
@@ -215,6 +216,7 @@ func run() error {
 		Webhooks:      webhooksHandler,
 		Discovery:     discoveryHandler,
 		AuthMW:        authMW,
+		WebFS:         web.FS,
 	})
 
 	// Create HTTP server

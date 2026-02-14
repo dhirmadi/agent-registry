@@ -1,7 +1,11 @@
 package api
 
 import (
+	"io"
+	"io/fs"
 	"net/http"
+	"path"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -36,6 +40,7 @@ type RouterConfig struct {
 	Webhooks      *WebhooksHandler
 	Discovery     *DiscoveryHandler
 	AuthMW        func(http.Handler) http.Handler
+	WebFS         fs.FS // Embedded SPA filesystem (nil = no SPA serving)
 }
 
 // NewRouter creates the chi router with middleware and all routes.
@@ -257,7 +262,60 @@ func NewRouter(cfg RouterConfig) chi.Router {
 		})
 	})
 
+	// Serve embedded SPA — catch-all after all API/auth/health routes
+	if cfg.WebFS != nil {
+		spaFS, err := fs.Sub(cfg.WebFS, "dist")
+		if err == nil {
+			handler := spaHandler(spaFS)
+			r.Get("/", handler)
+			r.Get("/*", handler)
+		}
+	}
+
 	return r
+}
+
+// spaHandler serves static files from the embedded filesystem, falling back
+// to index.html for client-side routes (SPA routing).
+func spaHandler(fsys fs.FS) http.HandlerFunc {
+	fileServer := http.FileServer(http.FS(fsys))
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Clean the path and strip leading slash for fs.Open
+		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+
+		// Try to open the requested file
+		f, err := fsys.Open(p)
+		if err != nil {
+			// File not found — serve index.html for SPA routing
+			serveIndexHTML(w, r, fsys)
+			return
+		}
+		f.Close()
+
+		// If it's a directory, serve index.html instead
+		info, err := fs.Stat(fsys, p)
+		if err != nil || info.IsDir() {
+			serveIndexHTML(w, r, fsys)
+			return
+		}
+
+		// Serve the static file
+		fileServer.ServeHTTP(w, r)
+	}
+}
+
+// serveIndexHTML reads and serves the index.html from the embedded FS.
+func serveIndexHTML(w http.ResponseWriter, _ *http.Request, fsys fs.FS) {
+	f, err := fsys.Open("index.html")
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	defer f.Close()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	io.Copy(w, f)
 }
 
 // securityHeaders adds security-related HTTP headers to every response.
