@@ -142,6 +142,10 @@ func (h *PromptsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		RespondError(w, r, apierrors.Validation("system_prompt is required"))
 		return
 	}
+	if len(req.SystemPrompt) > 100*1024 {
+		RespondError(w, r, apierrors.Validation("system_prompt must be at most 100KB"))
+		return
+	}
 
 	if req.Mode == "" {
 		req.Mode = "toolcalling_safe"

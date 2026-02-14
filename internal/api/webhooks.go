@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -68,6 +69,15 @@ func (h *WebhooksHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if req.URL == "" {
 		RespondError(w, r, apierrors.Validation("url is required"))
+		return
+	}
+	if len(req.URL) > 2000 {
+		RespondError(w, r, apierrors.Validation("url must be at most 2000 characters"))
+		return
+	}
+	parsedURL, err := url.Parse(req.URL)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		RespondError(w, r, apierrors.Validation("url must be a valid HTTP or HTTPS URL"))
 		return
 	}
 

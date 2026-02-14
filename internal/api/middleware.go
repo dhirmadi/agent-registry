@@ -157,6 +157,50 @@ func MustChangePassMiddleware(users UserLookup) func(http.Handler) http.Handler 
 	}
 }
 
+// MaxBodySize limits the size of request bodies.
+func MaxBodySize(maxBytes int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Body != nil {
+				r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// CORSMiddleware handles CORS for same-origin requests.
+// It rejects cross-origin requests by not setting any Access-Control-Allow-Origin header,
+// while handling preflight OPTIONS requests for the embedded GUI.
+func CORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+
+		// For same-origin requests, Origin is either empty or matches the host
+		if origin != "" {
+			// Only allow if origin matches the request host (same-origin)
+			// The embedded GUI is served from the same origin
+			host := r.Host
+			if origin == "http://"+host || origin == "https://"+host {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-CSRF-Token, If-Match")
+				w.Header().Set("Access-Control-Max-Age", "3600")
+				w.Header().Set("Vary", "Origin")
+			}
+			// Cross-origin: no CORS headers = browser blocks the request
+		}
+
+		// Handle preflight
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // SecurityHeadersMiddleware sets standard security headers on every response.
 func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,11 +1,14 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -616,5 +619,259 @@ func TestMustChangePassDoesNotBlockNormalUser(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200 for normal user on GET /api/v1/agents, got %d; body: %s",
 			w.Code, w.Body.String())
+	}
+}
+
+// --- MaxBodySize middleware tests ---
+
+func TestMaxBodySizeAllowsSmallBody(t *testing.T) {
+	t.Parallel()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write(body)
+	})
+
+	mw := MaxBodySize(1024) // 1KB limit
+	wrapped := mw(handler)
+
+	body := bytes.NewReader([]byte("small payload"))
+	req := httptest.NewRequest(http.MethodPost, "/test", body)
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for small body, got %d", w.Code)
+	}
+	if w.Body.String() != "small payload" {
+		t.Fatalf("expected body 'small payload', got %q", w.Body.String())
+	}
+}
+
+func TestMaxBodySizeRejectsOversizedBody(t *testing.T) {
+	t.Parallel()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.ReadAll(r.Body)
+		if err != nil {
+			// http.MaxBytesReader returns an error when limit is exceeded
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := MaxBodySize(100) // 100 bytes limit
+	wrapped := mw(handler)
+
+	// Create a body larger than the limit
+	largeBody := bytes.NewReader([]byte(strings.Repeat("x", 200)))
+	req := httptest.NewRequest(http.MethodPost, "/test", largeBody)
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected 413 for oversized body, got %d", w.Code)
+	}
+}
+
+func TestMaxBodySizeNilBody(t *testing.T) {
+	t.Parallel()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := MaxBodySize(1024)
+	wrapped := mw(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for nil body, got %d", w.Code)
+	}
+}
+
+// --- CORSMiddleware tests ---
+
+func TestCORSMiddlewareSameOrigin(t *testing.T) {
+	t.Parallel()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := CORSMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents", nil)
+	req.Host = "localhost:8090"
+	req.Header.Set("Origin", "http://localhost:8090")
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	// Should set CORS headers for same-origin
+	if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:8090" {
+		t.Fatalf("expected Access-Control-Allow-Origin to be set for same-origin, got %q",
+			w.Header().Get("Access-Control-Allow-Origin"))
+	}
+	if w.Header().Get("Access-Control-Allow-Methods") == "" {
+		t.Fatal("expected Access-Control-Allow-Methods to be set")
+	}
+	if w.Header().Get("Access-Control-Allow-Headers") == "" {
+		t.Fatal("expected Access-Control-Allow-Headers to be set")
+	}
+	if w.Header().Get("Access-Control-Max-Age") != "3600" {
+		t.Fatalf("expected Access-Control-Max-Age=3600, got %q", w.Header().Get("Access-Control-Max-Age"))
+	}
+	if w.Header().Get("Vary") != "Origin" {
+		t.Fatalf("expected Vary=Origin, got %q", w.Header().Get("Vary"))
+	}
+}
+
+func TestCORSMiddlewareCrossOriginBlocked(t *testing.T) {
+	t.Parallel()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := CORSMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents", nil)
+	req.Host = "localhost:8090"
+	req.Header.Set("Origin", "http://evil.com")
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	// Should NOT set CORS headers for cross-origin
+	if w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("expected no Access-Control-Allow-Origin for cross-origin, got %q",
+			w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestCORSMiddlewareNoOrigin(t *testing.T) {
+	t.Parallel()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := CORSMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents", nil)
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	// No Origin header = no CORS headers set
+	if w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("expected no Access-Control-Allow-Origin when no Origin header, got %q",
+			w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestCORSMiddlewarePreflightSameOrigin(t *testing.T) {
+	t.Parallel()
+
+	handlerCalled := false
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := CORSMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/agents", nil)
+	req.Host = "localhost:8090"
+	req.Header.Set("Origin", "http://localhost:8090")
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 for preflight, got %d", w.Code)
+	}
+	if handlerCalled {
+		t.Fatal("expected handler not to be called for preflight OPTIONS request")
+	}
+	if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:8090" {
+		t.Fatalf("expected CORS headers on preflight, got %q",
+			w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestCORSMiddlewarePreflightCrossOrigin(t *testing.T) {
+	t.Parallel()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := CORSMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/agents", nil)
+	req.Host = "localhost:8090"
+	req.Header.Set("Origin", "http://evil.com")
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	// Still returns 204 for OPTIONS, but without CORS headers the browser blocks the actual request
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 for preflight, got %d", w.Code)
+	}
+	if w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("expected no CORS headers for cross-origin preflight, got %q",
+			w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestCORSMiddlewareHTTPS(t *testing.T) {
+	t.Parallel()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := CORSMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents", nil)
+	req.Host = "registry.example.com"
+	req.Header.Set("Origin", "https://registry.example.com")
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if w.Header().Get("Access-Control-Allow-Origin") != "https://registry.example.com" {
+		t.Fatalf("expected CORS headers for same-origin HTTPS, got %q",
+			w.Header().Get("Access-Control-Allow-Origin"))
 	}
 }

@@ -143,6 +143,9 @@ func validateAgentTools(toolsJSON json.RawMessage) error {
 		if t.Name == "" {
 			return apierrors.Validation("each tool must have a non-empty name")
 		}
+		if len(t.Name) > 100 {
+			return apierrors.Validation("tool name must be at most 100 characters")
+		}
 		if !validToolSources[t.Source] {
 			return apierrors.Validation("tool source must be one of: internal, mcp")
 		}
@@ -181,6 +184,10 @@ func (h *AgentsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Name == "" {
 		RespondError(w, r, apierrors.Validation("name is required"))
+		return
+	}
+	if len(req.SystemPrompt) > 100*1024 {
+		RespondError(w, r, apierrors.Validation("system_prompt must be at most 100KB"))
 		return
 	}
 
@@ -315,6 +322,11 @@ func (h *AgentsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var req updateAgentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		RespondError(w, r, apierrors.Validation("invalid request body"))
+		return
+	}
+
+	if len(req.SystemPrompt) > 100*1024 {
+		RespondError(w, r, apierrors.Validation("system_prompt must be at most 100KB"))
 		return
 	}
 

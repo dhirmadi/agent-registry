@@ -44,6 +44,10 @@ func ValidatePasswordPolicy(password string) error {
 		return errors.New("password must contain at least one special character")
 	}
 
+	if isCommonPassword(password) {
+		return errors.New("password is too common; please choose a more unique password")
+	}
+
 	return nil
 }
 

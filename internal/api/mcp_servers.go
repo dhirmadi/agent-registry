@@ -55,6 +55,9 @@ var validAuthTypes = map[string]bool{
 
 // validateEndpointURL checks that an endpoint is a valid HTTP(S) URL pointing to a public host.
 func validateEndpointURL(endpoint string) error {
+	if len(endpoint) > 2000 {
+		return apierrors.Validation("endpoint must be at most 2000 characters")
+	}
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return apierrors.Validation("endpoint is not a valid URL")

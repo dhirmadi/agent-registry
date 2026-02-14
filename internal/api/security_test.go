@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -295,21 +296,68 @@ func TestSecurity_RateLimitBurstAPI(t *testing.T) {
 	defer setup.close()
 	client := securityClient()
 
-	var lastStatus int
-	for i := 0; i < 101; i++ {
+	// Verify that the rate limit headers reflect the correct limits per spec:
+	// - GET (reads): 300/min per user
+	// - POST (mutations): 60/min per user
+	// Rather than firing 300+ requests, we verify the X-RateLimit-Limit header.
+
+	t.Run("GET read limit is 300", func(t *testing.T) {
 		req, _ := setup.sessionRequest(http.MethodGet, "/api/v1/agents", nil, "valid-session")
 
 		resp, err := client.Do(req)
 		if err != nil {
-			t.Fatalf("request %d failed: %v", i, err)
+			t.Fatalf("request failed: %v", err)
 		}
-		lastStatus = resp.StatusCode
-		resp.Body.Close()
-	}
+		defer resp.Body.Close()
 
-	if lastStatus != http.StatusTooManyRequests {
-		t.Fatalf("expected 429 after API rate limit burst, got %d", lastStatus)
-	}
+		limitHeader := resp.Header.Get("X-RateLimit-Limit")
+		if limitHeader != "300" {
+			t.Fatalf("expected X-RateLimit-Limit=300 for GET, got %q", limitHeader)
+		}
+	})
+
+	t.Run("POST mutation limit is 60", func(t *testing.T) {
+		agentBody := map[string]interface{}{
+			"id":   "burst_test",
+			"name": "Burst Test Agent",
+		}
+		req, _ := setup.sessionRequest(http.MethodPost, "/api/v1/agents", agentBody, "valid-session")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		limitHeader := resp.Header.Get("X-RateLimit-Limit")
+		if limitHeader != "60" {
+			t.Fatalf("expected X-RateLimit-Limit=60 for POST, got %q", limitHeader)
+		}
+	})
+
+	t.Run("mutation burst triggers 429 at 61", func(t *testing.T) {
+		// Use a fresh rate limiter by using a unique session/IP combination.
+		// The "editor-session" user hasn't been rate-limited for mutations yet.
+		var lastStatus int
+		for i := 0; i < 61; i++ {
+			agentBody := map[string]interface{}{
+				"id":   fmt.Sprintf("burst_mutation_%d", i),
+				"name": fmt.Sprintf("Burst Mutation %d", i),
+			}
+			req, _ := setup.sessionRequest(http.MethodPost, "/api/v1/agents", agentBody, "editor-session")
+
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatalf("request %d failed: %v", i, err)
+			}
+			lastStatus = resp.StatusCode
+			resp.Body.Close()
+		}
+
+		if lastStatus != http.StatusTooManyRequests {
+			t.Fatalf("expected 429 after 61 mutation requests, got %d", lastStatus)
+		}
+	})
 }
 
 func TestSecurity_PasswordHashNotInUserResponse(t *testing.T) {

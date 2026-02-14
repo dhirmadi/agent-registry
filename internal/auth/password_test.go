@@ -63,6 +63,23 @@ func TestValidatePasswordPolicy(t *testing.T) {
 			password: "Abcdefgh12!@",
 			wantErr:  false,
 		},
+		{
+			name:     "common password that passes complexity",
+			password: "Password123!",
+			wantErr:  true,
+			errMsg:   "too common",
+		},
+		{
+			name:     "common password case insensitive",
+			password: "pASSWORD123!",
+			wantErr:  true,
+			errMsg:   "too common",
+		},
+		{
+			name:     "strong unique password passes",
+			password: "Xk9$mQ2vL!pR",
+			wantErr:  false,
+		},
 	}
 
 	for _, tt := range tests {

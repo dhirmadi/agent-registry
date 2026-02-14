@@ -57,6 +57,7 @@ func NewRouter(cfg RouterConfig) chi.Router {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(CORSMiddleware)
 	r.Use(securityHeaders)
 
 	// Health routes (no auth required)
@@ -67,16 +68,26 @@ func NewRouter(cfg RouterConfig) chi.Router {
 	if cfg.Auth != nil {
 		r.Route("/auth", func(r chi.Router) {
 			// Public auth routes (no auth required)
-			// Rate limit login: 5 requests/minute per IP (brute-force protection)
+			// Rate limit login: 5 requests per 15 minutes per IP (brute-force protection)
 			if cfg.RateLimiter != nil {
-				r.With(cfg.RateLimiter.Middleware(5, time.Minute, func(r *http.Request) string {
+				r.With(cfg.RateLimiter.Middleware(5, 15*time.Minute, func(r *http.Request) string {
 					return "login:" + r.RemoteAddr
 				})).Post("/login", cfg.Auth.HandleLogin)
 			} else {
 				r.Post("/login", cfg.Auth.HandleLogin)
 			}
-			r.Get("/google/start", cfg.Auth.HandleGoogleStart)
-			r.Get("/google/callback", cfg.Auth.HandleGoogleCallback)
+			// Rate limit Google OAuth: 10 requests per 15 minutes per IP
+			if cfg.RateLimiter != nil {
+				r.With(cfg.RateLimiter.Middleware(10, 15*time.Minute, func(r *http.Request) string {
+					return "oauth:" + r.RemoteAddr
+				})).Get("/google/start", cfg.Auth.HandleGoogleStart)
+				r.With(cfg.RateLimiter.Middleware(10, 15*time.Minute, func(r *http.Request) string {
+					return "oauth:" + r.RemoteAddr
+				})).Get("/google/callback", cfg.Auth.HandleGoogleCallback)
+			} else {
+				r.Get("/google/start", cfg.Auth.HandleGoogleStart)
+				r.Get("/google/callback", cfg.Auth.HandleGoogleCallback)
+			}
 
 			// Protected auth routes (auth required)
 			r.Group(func(r chi.Router) {
@@ -93,18 +104,17 @@ func NewRouter(cfg RouterConfig) chi.Router {
 
 	// API routes (all require auth)
 	r.Route("/api/v1", func(r chi.Router) {
+		// Limit request body size to 1MB for all API routes
+		r.Use(MaxBodySize(1 << 20))
+
 		if cfg.AuthMW != nil {
 			r.Use(cfg.AuthMW)
 		}
 
-		// Rate limit API: 100 requests/minute per authenticated user
+		// Rate limit API: 60/min for mutations (POST/PUT/PATCH/DELETE),
+		// 300/min for reads (GET), per authenticated user or API key.
 		if cfg.RateLimiter != nil {
-			r.Use(cfg.RateLimiter.Middleware(100, time.Minute, func(r *http.Request) string {
-				if uid, ok := auth.UserIDFromContext(r.Context()); ok {
-					return "api:" + uid.String()
-				}
-				return "api:" + r.RemoteAddr
-			}))
+			r.Use(methodAwareRateLimiter(cfg.RateLimiter))
 		}
 
 		// Users (admin only)
@@ -232,10 +242,18 @@ func NewRouter(cfg RouterConfig) chi.Router {
 			})
 		}
 
-		// Discovery (viewer+)
+		// Discovery (viewer+) — rate limited at 10/min per user/key
 		if cfg.Discovery != nil {
 			r.Group(func(r chi.Router) {
 				r.Use(RequireRole("viewer", "editor", "admin"))
+				if cfg.RateLimiter != nil {
+					r.Use(cfg.RateLimiter.Middleware(10, time.Minute, func(r *http.Request) string {
+						if uid, ok := auth.UserIDFromContext(r.Context()); ok {
+							return "discovery:" + uid.String()
+						}
+						return "discovery:" + r.RemoteAddr
+					}))
+				}
 				r.Get("/discovery", cfg.Discovery.GetDiscovery)
 			})
 		}
@@ -295,6 +313,37 @@ func NewRouter(cfg RouterConfig) chi.Router {
 	}
 
 	return r
+}
+
+// methodAwareRateLimiter applies different rate limits for read vs mutation HTTP methods.
+// Mutations (POST/PUT/PATCH/DELETE): 60 requests/min per authenticated user.
+// Reads (GET and others): 300 requests/min per authenticated user.
+func methodAwareRateLimiter(rl *ratelimit.RateLimiter) func(http.Handler) http.Handler {
+	mutationMW := rl.Middleware(60, time.Minute, func(r *http.Request) string {
+		if uid, ok := auth.UserIDFromContext(r.Context()); ok {
+			return "api-mutation:" + uid.String()
+		}
+		return "api-mutation:" + r.RemoteAddr
+	})
+	readMW := rl.Middleware(300, time.Minute, func(r *http.Request) string {
+		if uid, ok := auth.UserIDFromContext(r.Context()); ok {
+			return "api-read:" + uid.String()
+		}
+		return "api-read:" + r.RemoteAddr
+	})
+
+	return func(next http.Handler) http.Handler {
+		mutationHandler := mutationMW(next)
+		readHandler := readMW(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+				mutationHandler.ServeHTTP(w, r)
+			default:
+				readHandler.ServeHTTP(w, r)
+			}
+		})
+	}
 }
 
 // spaHandler serves static files from the embedded filesystem, falling back

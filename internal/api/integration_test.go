@@ -468,7 +468,7 @@ func TestIntegration_RateLimitLogin(t *testing.T) {
 		return http.ErrUseLastResponse
 	}}
 
-	// Login rate limit is 5/minute per IP.
+	// Login rate limit is 5 per 15 minutes per IP.
 	// We set X-Real-IP so chi's RealIP middleware normalizes RemoteAddr
 	// to a consistent value (without ephemeral port).
 	for i := 0; i < 5; i++ {
@@ -518,32 +518,74 @@ func TestIntegration_RateLimitAPI(t *testing.T) {
 		return http.ErrUseLastResponse
 	}}
 
-	// API rate limit is 100/minute per user
-	for i := 0; i < 100; i++ {
+	t.Run("GET rate limit header shows 300", func(t *testing.T) {
 		req, _ := setup.sessionRequest(http.MethodGet, "/api/v1/agents", nil, "valid-session")
 
 		resp, err := client.Do(req)
 		if err != nil {
-			t.Fatalf("request %d failed: %v", i, err)
+			t.Fatalf("request failed: %v", err)
 		}
-		resp.Body.Close()
+		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("request %d: expected 200, got %d", i, resp.StatusCode)
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
 		}
-	}
 
-	// 101st request should be rate limited
-	req, _ := setup.sessionRequest(http.MethodGet, "/api/v1/agents", nil, "valid-session")
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("101st request failed: %v", err)
-	}
-	defer resp.Body.Close()
+		limitHeader := resp.Header.Get("X-RateLimit-Limit")
+		if limitHeader != "300" {
+			t.Fatalf("expected X-RateLimit-Limit=300 for GET, got %q", limitHeader)
+		}
+	})
 
-	if resp.StatusCode != http.StatusTooManyRequests {
-		t.Fatalf("expected 429 on 101st API call, got %d", resp.StatusCode)
-	}
+	t.Run("POST rate limit header shows 60", func(t *testing.T) {
+		agentBody := map[string]interface{}{
+			"id":   "ratelimit_post_test",
+			"name": "Rate Limit POST Test",
+		}
+		req, _ := setup.sessionRequest(http.MethodPost, "/api/v1/agents", agentBody, "valid-session")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		limitHeader := resp.Header.Get("X-RateLimit-Limit")
+		if limitHeader != "60" {
+			t.Fatalf("expected X-RateLimit-Limit=60 for POST, got %q", limitHeader)
+		}
+	})
+
+	t.Run("PUT rate limit header shows 60", func(t *testing.T) {
+		req, _ := setup.sessionRequest(http.MethodPut, "/api/v1/agents/some_agent", map[string]interface{}{"name": "Updated"}, "valid-session")
+		req.Header.Set("If-Match", time.Now().UTC().Format(time.RFC3339Nano))
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		limitHeader := resp.Header.Get("X-RateLimit-Limit")
+		if limitHeader != "60" {
+			t.Fatalf("expected X-RateLimit-Limit=60 for PUT, got %q", limitHeader)
+		}
+	})
+
+	t.Run("DELETE rate limit header shows 60", func(t *testing.T) {
+		req, _ := setup.sessionRequest(http.MethodDelete, "/api/v1/agents/some_agent", nil, "valid-session")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		limitHeader := resp.Header.Get("X-RateLimit-Limit")
+		if limitHeader != "60" {
+			t.Fatalf("expected X-RateLimit-Limit=60 for DELETE, got %q", limitHeader)
+		}
+	})
 }
 
 func TestIntegration_APIKeyAuth(t *testing.T) {
@@ -572,7 +614,10 @@ func TestIntegration_APIKeyAuth(t *testing.T) {
 	var env Envelope
 	resp2, _ := http.NewRequest(http.MethodGet, setup.server.URL+"/api/v1/agents", nil)
 	resp2.Header.Set("Authorization", "Bearer areg_valid_key_12345")
-	httpResp, _ := client.Do(resp2)
+	httpResp, err := client.Do(resp2)
+	if err != nil {
+		t.Fatalf("API key request failed: %v", err)
+	}
 	defer httpResp.Body.Close()
 
 	json.NewDecoder(httpResp.Body).Decode(&env)
