@@ -8,7 +8,7 @@ COPY web/ .
 RUN npm run build          # outputs to /web/dist/
 
 # ── Stage 2: Build Go Server ────────────────────────
-FROM golang:1.24-alpine AS go-builder
+FROM golang:1.25-alpine AS go-builder
 
 WORKDIR /build
 COPY go.mod go.sum ./
