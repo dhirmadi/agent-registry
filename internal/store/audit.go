@@ -106,7 +106,7 @@ func (s *AuditStore) List(ctx context.Context, filter AuditFilter) ([]AuditEntry
 	}
 
 	dataQuery := fmt.Sprintf(`
-		SELECT id, actor, actor_id, action, resource_type, resource_id, details, ip_address, created_at
+		SELECT id, actor, actor_id, action, resource_type, resource_id, details, ip_address::text, created_at
 		FROM audit_log %s
 		ORDER BY created_at DESC
 		LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)

@@ -193,8 +193,8 @@ func (s *integTestSetup) sessionRequest(method, path string, body interface{}, s
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: sessionID})
-	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName, Value: "test-csrf-token"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: sessionID})
+	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName(), Value: "test-csrf-token"})
 	req.Header.Set("X-CSRF-Token", "test-csrf-token")
 	return req, nil
 }
@@ -317,7 +317,7 @@ func TestIntegration_CSRFEnforcement(t *testing.T) {
 
 		req, _ := http.NewRequest(http.MethodPost, setup.server.URL+"/api/v1/agents", &buf)
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "valid-session"})
+		req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "valid-session"})
 		// No CSRF cookie or header
 
 		resp, err := client.Do(req)

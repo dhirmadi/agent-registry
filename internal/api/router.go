@@ -43,7 +43,9 @@ type RouterConfig struct {
 	SignalConfig  *SignalConfigHandler
 	Webhooks      *WebhooksHandler
 	Discovery     *DiscoveryHandler
+	AuditLog      *AuditHandler
 	AuthMW        func(http.Handler) http.Handler
+	UserLookup    UserLookup             // For MustChangePassMiddleware (nil = no enforcement)
 	RateLimiter   *ratelimit.RateLimiter // nil = no rate limiting
 	WebFS         fs.FS                  // Embedded SPA filesystem (nil = no SPA serving)
 }
@@ -109,6 +111,10 @@ func NewRouter(cfg RouterConfig) chi.Router {
 
 		if cfg.AuthMW != nil {
 			r.Use(cfg.AuthMW)
+		}
+
+		if cfg.UserLookup != nil {
+			r.Use(MustChangePassMiddleware(cfg.UserLookup))
 		}
 
 		// Rate limit API: 60/min for mutations (POST/PUT/PATCH/DELETE),
@@ -239,6 +245,14 @@ func NewRouter(cfg RouterConfig) chi.Router {
 				r.Get("/", cfg.Webhooks.List)
 				r.Post("/", cfg.Webhooks.Create)
 				r.Delete("/{webhookId}", cfg.Webhooks.Delete)
+			})
+		}
+
+		// Audit Log (admin only)
+		if cfg.AuditLog != nil {
+			r.Route("/audit-log", func(r chi.Router) {
+				r.Use(RequireRole("admin"))
+				r.Get("/", cfg.AuditLog.List)
 			})
 		}
 

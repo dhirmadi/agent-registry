@@ -19,13 +19,13 @@ func TestSetCSRFCookie(t *testing.T) {
 
 	var found *http.Cookie
 	for _, c := range cookies {
-		if c.Name == CSRFCookieName {
+		if c.Name == CSRFCookieName() {
 			found = c
 			break
 		}
 	}
 	if found == nil {
-		t.Fatalf("cookie %s not found", CSRFCookieName)
+		t.Fatalf("cookie %s not found", CSRFCookieName())
 	}
 
 	if found.Value != token {
@@ -136,7 +136,7 @@ func TestValidateCSRF(t *testing.T) {
 			req := httptest.NewRequest(tt.method, "/api/v1/agents", nil)
 			if tt.cookieValue != "" {
 				req.AddCookie(&http.Cookie{
-					Name:  CSRFCookieName,
+					Name:  CSRFCookieName(),
 					Value: tt.cookieValue,
 				})
 			}
@@ -163,13 +163,13 @@ func TestClearCSRFCookie(t *testing.T) {
 	cookies := w.Result().Cookies()
 	var found *http.Cookie
 	for _, c := range cookies {
-		if c.Name == CSRFCookieName {
+		if c.Name == CSRFCookieName() {
 			found = c
 			break
 		}
 	}
 	if found == nil {
-		t.Fatalf("cookie %s not found", CSRFCookieName)
+		t.Fatalf("cookie %s not found", CSRFCookieName())
 	}
 	if found.MaxAge != -1 {
 		t.Fatalf("expected MaxAge=-1 for clearing, got %d", found.MaxAge)

@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -57,7 +58,7 @@ type Dispatcher struct {
 	workers    int
 	maxRetries int
 	wg         sync.WaitGroup
-	done       chan struct{}
+	stopped    atomic.Bool
 }
 
 // NewDispatcher creates a dispatcher with a buffered channel (size 1000).
@@ -68,7 +69,6 @@ func NewDispatcher(loader SubscriptionLoader, cfg Config) *Dispatcher {
 		eventCh:    make(chan Event, 1000),
 		workers:    cfg.Workers,
 		maxRetries: cfg.MaxRetries,
-		done:       make(chan struct{}),
 	}
 }
 
@@ -80,14 +80,18 @@ func (d *Dispatcher) Start() {
 	}
 }
 
-// Stop closes the done channel and waits for workers to drain.
+// Stop signals workers to drain remaining events and exit.
 func (d *Dispatcher) Stop() {
-	close(d.done)
+	d.stopped.Store(true)
+	close(d.eventCh)
 	d.wg.Wait()
 }
 
 // Dispatch performs a non-blocking send to the event channel.
 func (d *Dispatcher) Dispatch(event Event) {
+	if d.stopped.Load() {
+		return
+	}
 	select {
 	case d.eventCh <- event:
 	default:
@@ -97,21 +101,8 @@ func (d *Dispatcher) Dispatch(event Event) {
 
 func (d *Dispatcher) worker() {
 	defer d.wg.Done()
-	for {
-		select {
-		case event := <-d.eventCh:
-			d.processEvent(event)
-		case <-d.done:
-			// Drain remaining events before exiting.
-			for {
-				select {
-				case event := <-d.eventCh:
-					d.processEvent(event)
-				default:
-					return
-				}
-			}
-		}
+	for event := range d.eventCh {
+		d.processEvent(event)
 	}
 }
 

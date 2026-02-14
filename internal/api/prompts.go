@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -75,6 +76,9 @@ func (h *PromptsHandler) List(w http.ResponseWriter, r *http.Request) {
 	if limit <= 0 {
 		limit = 20
 	}
+	if limit > 200 {
+		limit = 200
+	}
 	if offset < 0 {
 		offset = 0
 	}
@@ -97,7 +101,11 @@ func (h *PromptsHandler) GetActive(w http.ResponseWriter, r *http.Request) {
 
 	prompt, err := h.prompts.GetActive(r.Context(), agentID)
 	if err != nil {
-		RespondError(w, r, apierrors.NotFound("prompt", "active for agent '"+agentID+"'"))
+		if isNotFoundError(err) {
+			RespondError(w, r, apierrors.NotFound("prompt", "active for agent '"+agentID+"'"))
+		} else {
+			RespondError(w, r, apierrors.Internal("failed to retrieve active prompt"))
+		}
 		return
 	}
 
@@ -242,14 +250,16 @@ func (h *PromptsHandler) auditLog(r *http.Request, action, resourceType, resourc
 		return
 	}
 	callerID, _ := auth.UserIDFromContext(r.Context())
-	h.audit.Insert(r.Context(), &store.AuditEntry{
+	if err := h.audit.Insert(r.Context(), &store.AuditEntry{
 		Actor:        callerID.String(),
 		ActorID:      &callerID,
 		Action:       action,
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
-	})
+	}); err != nil {
+		log.Printf("audit log failed for %s %s/%s: %v", action, resourceType, resourceID, err)
+	}
 }
 
 func (h *PromptsHandler) dispatchEvent(r *http.Request, eventType, resourceType, resourceID string) {

@@ -159,6 +159,15 @@ func (m *mockSessionStore) DeleteByUserID(_ context.Context, userID uuid.UUID) e
 	return nil
 }
 
+func (m *mockSessionStore) DeleteOthersByUserID(_ context.Context, userID uuid.UUID, keepSessionID string) error {
+	for k, s := range m.sessions {
+		if s.UserID == userID && k != keepSessionID {
+			delete(m.sessions, k)
+		}
+	}
+	return nil
+}
+
 type mockAuditStore struct {
 	entries []*AuditRecord
 }
@@ -296,9 +305,9 @@ func TestHandleLoginSetsCookies(t *testing.T) {
 	var sessionCookie, csrfCookie *http.Cookie
 	for _, c := range cookies {
 		switch c.Name {
-		case SessionCookieName:
+		case SessionCookieName():
 			sessionCookie = c
-		case CSRFCookieName:
+		case CSRFCookieName():
 			csrfCookie = c
 		}
 	}
@@ -416,7 +425,7 @@ func TestHandleLogout(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
-	req.AddCookie(&http.Cookie{Name: SessionCookieName, Value: "test-session-id"})
+	req.AddCookie(&http.Cookie{Name: SessionCookieName(), Value: "test-session-id"})
 	w := httptest.NewRecorder()
 
 	h.HandleLogout(w, req)
@@ -696,7 +705,7 @@ func TestHandleGoogleStartRedirects(t *testing.T) {
 	cookies := w.Result().Cookies()
 	var stateCookie *http.Cookie
 	for _, c := range cookies {
-		if c.Name == OAuthStateCookieName {
+		if c.Name == OAuthStateCookieName() {
 			stateCookie = c
 		}
 	}
@@ -798,7 +807,7 @@ func TestHandleGoogleCallbackExistingOAuthConnection(t *testing.T) {
 	respCookies := w.Result().Cookies()
 	var sessionCookie *http.Cookie
 	for _, c := range respCookies {
-		if c.Name == SessionCookieName {
+		if c.Name == SessionCookieName() {
 			sessionCookie = c
 		}
 	}

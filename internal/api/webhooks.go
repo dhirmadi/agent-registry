@@ -81,6 +81,11 @@ func (h *WebhooksHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if isPrivateHost(parsedURL.Hostname()) {
+		RespondError(w, r, apierrors.Validation("url must not point to a private or internal address"))
+		return
+	}
+
 	if len(req.Events) == 0 {
 		RespondError(w, r, apierrors.Validation("events must be a non-empty array"))
 		return

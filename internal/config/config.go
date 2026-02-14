@@ -52,6 +52,9 @@ func LoadFrom(env map[string]string) (*Config, error) {
 	if cfg.CredentialEncryptionKey == "" {
 		return nil, fmt.Errorf("required environment variable CREDENTIAL_ENCRYPTION_KEY is not set")
 	}
+	if len(cfg.CredentialEncryptionKey) != 32 {
+		return nil, fmt.Errorf("CREDENTIAL_ENCRYPTION_KEY must be exactly 32 bytes for AES-256-GCM (got %d)", len(cfg.CredentialEncryptionKey))
+	}
 
 	// Strings with defaults
 	cfg.Port = getOrDefault(get, "PORT", "8090")

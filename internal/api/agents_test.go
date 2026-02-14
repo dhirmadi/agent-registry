@@ -24,6 +24,7 @@ type mockAgentStore struct {
 	versions map[string][]store.AgentVersion
 
 	createErr   error
+	getByIDErr  error
 	updateErr   error
 	deleteErr   error
 	rollbackErr error
@@ -67,6 +68,9 @@ func (m *mockAgentStore) Create(_ context.Context, agent *store.Agent) error {
 }
 
 func (m *mockAgentStore) GetByID(_ context.Context, id string) (*store.Agent, error) {
+	if m.getByIDErr != nil {
+		return nil, m.getByIDErr
+	}
 	a, ok := m.agents[id]
 	if !ok {
 		return nil, fmt.Errorf("NOT_FOUND: agent '%s' not found", id)
@@ -133,14 +137,28 @@ func (m *mockAgentStore) Patch(_ context.Context, id string, fields map[string]i
 		return nil, fmt.Errorf("CONFLICT: resource was modified by another client")
 	}
 	if v, ok := fields["name"]; ok {
-		existing.Name = v.(string)
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("name must be a string")
+		}
+		existing.Name = s
 	}
 	if v, ok := fields["description"]; ok {
-		existing.Description = v.(string)
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("description must be a string")
+		}
+		existing.Description = s
+	}
+	if v, ok := fields["is_active"]; ok {
+		b, ok := v.(bool)
+		if !ok {
+			return nil, fmt.Errorf("is_active must be a boolean")
+		}
+		existing.IsActive = b
 	}
 	existing.Version++
 	existing.UpdatedAt = time.Now()
-	existing.CreatedBy = actor
 	m.agents[id] = existing
 	return existing, nil
 }
@@ -1030,5 +1048,152 @@ func TestAgentsHandler_RoleAccess(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// --- Audit quality tests ---
+
+func TestAgentsHandler_List_PaginationUpperBound(t *testing.T) {
+	agentStore := newMockAgentStore()
+	audit := &mockAuditStoreForAPI{}
+	h := NewAgentsHandler(agentStore, audit, nil)
+
+	// Seed 5 agents
+	for i := 0; i < 5; i++ {
+		a := &store.Agent{
+			ID:             fmt.Sprintf("agent_%d", i),
+			Name:           fmt.Sprintf("Agent %d", i),
+			Tools:          json.RawMessage(`[]`),
+			TrustOverrides: json.RawMessage(`{}`),
+			ExamplePrompts: json.RawMessage(`[]`),
+			IsActive:       true,
+			Version:        1,
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+		}
+		agentStore.agents[a.ID] = a
+	}
+
+	// Request limit=500, should be capped to 200
+	req := agentRequest(http.MethodGet, "/api/v1/agents?limit=500&active_only=false", nil, "viewer")
+	w := httptest.NewRecorder()
+
+	h.List(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	env := parseEnvelope(t, w)
+	data := env.Data.(map[string]interface{})
+	agents := data["agents"].([]interface{})
+	// We only seeded 5, so we should get 5 back (not 500)
+	if len(agents) != 5 {
+		t.Fatalf("expected 5 agents (capped at 200, but only 5 exist), got %d", len(agents))
+	}
+}
+
+func TestAgentsHandler_Patch_InvalidTypeReturnsError(t *testing.T) {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	agentStore := newMockAgentStore()
+	audit := &mockAuditStoreForAPI{}
+	h := NewAgentsHandler(agentStore, audit, nil)
+
+	agentStore.agents["test_agent"] = &store.Agent{
+		ID:             "test_agent",
+		Name:           "Test Agent",
+		Description:    "Original",
+		SystemPrompt:   "Original prompt",
+		Tools:          json.RawMessage(`[]`),
+		TrustOverrides: json.RawMessage(`{}`),
+		ExamplePrompts: json.RawMessage(`[]`),
+		IsActive:       true,
+		Version:        1,
+		CreatedBy:      "system",
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	// Send name as number instead of string
+	req := agentRequest(http.MethodPatch, "/api/v1/agents/test_agent", map[string]interface{}{
+		"name": 123,
+	}, "editor")
+	req.Header.Set("If-Match", now.Format(time.RFC3339Nano))
+	req = withChiParam(req, "agentId", "test_agent")
+	w := httptest.NewRecorder()
+
+	h.PatchAgent(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 for invalid type in PATCH, got %d; body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAgentsHandler_Get_NonNotFoundErrorReturns500(t *testing.T) {
+	agentStore := newMockAgentStore()
+	agentStore.getByIDErr = fmt.Errorf("database connection lost")
+	audit := &mockAuditStoreForAPI{}
+	h := NewAgentsHandler(agentStore, audit, nil)
+
+	req := agentRequest(http.MethodGet, "/api/v1/agents/test_agent", nil, "viewer")
+	req = withChiParam(req, "agentId", "test_agent")
+	w := httptest.NewRecorder()
+
+	h.Get(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 for database error, got %d; body: %s", w.Code, w.Body.String())
+	}
+
+	env := parseEnvelope(t, w)
+	errObj := env.Error
+	if errObj == nil {
+		t.Fatal("expected error in response")
+	}
+}
+
+func TestAgentsHandler_Update_PreservesCreatedBy(t *testing.T) {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	agentStore := newMockAgentStore()
+	audit := &mockAuditStoreForAPI{}
+	h := NewAgentsHandler(agentStore, audit, nil)
+
+	originalCreator := "original-creator-id"
+	agentStore.agents["test_agent"] = &store.Agent{
+		ID:             "test_agent",
+		Name:           "Test Agent",
+		Description:    "Original",
+		SystemPrompt:   "Original prompt",
+		Tools:          json.RawMessage(`[]`),
+		TrustOverrides: json.RawMessage(`{}`),
+		ExamplePrompts: json.RawMessage(`[]`),
+		IsActive:       true,
+		Version:        1,
+		CreatedBy:      originalCreator,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	req := agentRequest(http.MethodPut, "/api/v1/agents/test_agent", map[string]interface{}{
+		"name":          "Updated Agent",
+		"description":   "Updated description",
+		"system_prompt": "Updated prompt",
+	}, "editor")
+	req.Header.Set("If-Match", now.Format(time.RFC3339Nano))
+	req = withChiParam(req, "agentId", "test_agent")
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", w.Code, w.Body.String())
+	}
+
+	// Verify created_by was not overwritten
+	agent := agentStore.agents["test_agent"]
+	if agent.CreatedBy != originalCreator {
+		t.Fatalf("expected created_by to remain %q, got %q", originalCreator, agent.CreatedBy)
 	}
 }

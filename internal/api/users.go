@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -93,6 +94,9 @@ func (h *UsersHandler) List(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	if limit <= 0 {
 		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
 	}
 	if offset < 0 {
 		offset = 0
@@ -366,14 +370,16 @@ func (h *UsersHandler) auditLog(r *http.Request, action, resourceType, resourceI
 		return
 	}
 	callerID, _ := auth.UserIDFromContext(r.Context())
-	h.audit.Insert(r.Context(), &store.AuditEntry{
+	if err := h.audit.Insert(r.Context(), &store.AuditEntry{
 		Actor:        callerID.String(),
 		ActorID:      &callerID,
 		Action:       action,
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
-	})
+	}); err != nil {
+		log.Printf("audit log failed for %s %s/%s: %v", action, resourceType, resourceID, err)
+	}
 }
 
 func clientIPFromRequest(r *http.Request) string {

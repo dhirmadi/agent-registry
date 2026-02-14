@@ -10,12 +10,49 @@ import (
 )
 
 const (
-	SessionTTL         = 8 * time.Hour
-	SessionIdleTimeout = 30 * time.Minute
-	SessionCookieName  = "__Host-session"
-	CSRFCookieName     = "__Host-csrf"
+	SessionTTL          = 8 * time.Hour
+	SessionIdleTimeout  = 30 * time.Minute
 	SessionCookieMaxAge = 28800 // 8 hours in seconds
 )
+
+// secureCookies controls whether cookies use __Host- prefix and Secure flag.
+// Must be set at startup via SetSecureCookies before handling requests.
+var secureCookies = true
+
+// SetSecureCookies configures cookie security based on deployment mode.
+// Pass false for HTTP (local dev), true for HTTPS (production).
+func SetSecureCookies(secure bool) {
+	secureCookies = secure
+}
+
+// SessionCookieName returns the session cookie name for the current mode.
+func SessionCookieName() string {
+	if secureCookies {
+		return "__Host-session"
+	}
+	return "session"
+}
+
+// CSRFCookieName returns the CSRF cookie name for the current mode.
+func CSRFCookieName() string {
+	if secureCookies {
+		return "__Host-csrf"
+	}
+	return "csrf"
+}
+
+// OAuthStateCookieName returns the OAuth state cookie name for the current mode.
+func OAuthStateCookieName() string {
+	if secureCookies {
+		return "__Host-oauth-state"
+	}
+	return "oauth-state"
+}
+
+// IsSecureCookies returns whether secure cookies are enabled.
+func IsSecureCookies() bool {
+	return secureCookies
+}
 
 // Session represents a server-side session stored in PostgreSQL.
 type Session struct {

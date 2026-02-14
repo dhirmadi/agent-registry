@@ -174,7 +174,7 @@ func TestOAuthStateCookieRoundTrip(t *testing.T) {
 
 	var oauthCookie *http.Cookie
 	for _, c := range cookies {
-		if c.Name == OAuthStateCookieName {
+		if c.Name == OAuthStateCookieName() {
 			oauthCookie = c
 		}
 	}
@@ -252,7 +252,7 @@ func TestClearOAuthStateCookie(t *testing.T) {
 	cookies := w.Result().Cookies()
 	var found *http.Cookie
 	for _, c := range cookies {
-		if c.Name == OAuthStateCookieName {
+		if c.Name == OAuthStateCookieName() {
 			found = c
 		}
 	}
@@ -273,7 +273,7 @@ func TestOAuthStateCookieValueIsEncrypted(t *testing.T) {
 
 	cookies := w.Result().Cookies()
 	for _, c := range cookies {
-		if c.Name == OAuthStateCookieName {
+		if c.Name == OAuthStateCookieName() {
 			// The cookie value should not contain plaintext state or verifier
 			var parsed OAuthStateCookie
 			err := json.Unmarshal([]byte(c.Value), &parsed)

@@ -544,8 +544,8 @@ func TestAuditCompleteness(t *testing.T) {
 				t.Fatalf("failed to create request: %v", err)
 			}
 			req.Header.Set("Content-Type", "application/json")
-			req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "admin-session"})
-			req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName, Value: csrfToken})
+			req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "admin-session"})
+			req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName(), Value: csrfToken})
 			req.Header.Set("X-CSRF-Token", csrfToken)
 
 			for k, v := range tt.headers {

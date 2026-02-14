@@ -140,7 +140,7 @@ func TestAuthMiddlewareSessionCookie(t *testing.T) {
 
 	// GET request (no CSRF needed)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents", nil)
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session123"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "session123"})
 	w := httptest.NewRecorder()
 
 	wrapped.ServeHTTP(w, req)
@@ -186,7 +186,7 @@ func TestAuthMiddlewareExpiredSession(t *testing.T) {
 	wrapped := mw(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents", nil)
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "expired-session"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "expired-session"})
 	w := httptest.NewRecorder()
 
 	wrapped.ServeHTTP(w, req)
@@ -306,39 +306,6 @@ func TestRequestIDMiddleware(t *testing.T) {
 	})
 }
 
-func TestSecurityHeadersMiddleware(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	wrapped := SecurityHeadersMiddleware(handler)
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	w := httptest.NewRecorder()
-
-	wrapped.ServeHTTP(w, req)
-
-	expectedHeaders := map[string]string{
-		"Strict-Transport-Security": "max-age=63072000; includeSubDomains",
-		"X-Content-Type-Options":    "nosniff",
-		"X-Frame-Options":           "DENY",
-		"Referrer-Policy":           "strict-origin-when-cross-origin",
-		"Permissions-Policy":        "camera=(), microphone=(), geolocation=()",
-	}
-
-	for header, expected := range expectedHeaders {
-		got := w.Header().Get(header)
-		if got != expected {
-			t.Errorf("%s = %q, want %q", header, got, expected)
-		}
-	}
-
-	csp := w.Header().Get("Content-Security-Policy")
-	if csp == "" {
-		t.Error("Content-Security-Policy header not set")
-	}
-}
-
 // --- MustChangePass middleware tests ---
 //
 // These tests prove that the middleware does NOT enforce must_change_pass.
@@ -420,7 +387,7 @@ func TestMustChangePassBlocksAPIAccess(t *testing.T) {
 	for _, p := range paths {
 		t.Run(p.method+" "+p.path, func(t *testing.T) {
 			req := httptest.NewRequest(p.method, p.path, nil)
-			req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "sess-must-change"})
+			req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "sess-must-change"})
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)
@@ -468,9 +435,9 @@ func TestMustChangePassAllowsChangePassword(t *testing.T) {
 	router := buildMustChangePassRouter(sessions, apiKeys, users)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/change-password", nil)
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "sess-must-change"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "sess-must-change"})
 	// Add CSRF cookie to match stored token
-	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName, Value: "csrf123"})
+	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName(), Value: "csrf123"})
 	req.Header.Set("X-CSRF-Token", "csrf123")
 	w := httptest.NewRecorder()
 
@@ -501,8 +468,8 @@ func TestMustChangePassAllowsLogout(t *testing.T) {
 	router := buildMustChangePassRouter(sessions, apiKeys, users)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "sess-must-change"})
-	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName, Value: "csrf123"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "sess-must-change"})
+	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName(), Value: "csrf123"})
 	req.Header.Set("X-CSRF-Token", "csrf123")
 	w := httptest.NewRecorder()
 
@@ -533,7 +500,7 @@ func TestMustChangePassAllowsMe(t *testing.T) {
 	router := buildMustChangePassRouter(sessions, apiKeys, users)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "sess-must-change"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "sess-must-change"})
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -611,7 +578,7 @@ func TestMustChangePassDoesNotBlockNormalUser(t *testing.T) {
 	router := buildMustChangePassRouter(sessions, apiKeys, users)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents", nil)
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "sess-normal"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "sess-normal"})
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -848,6 +815,87 @@ func TestCORSMiddlewarePreflightCrossOrigin(t *testing.T) {
 	if w.Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatalf("expected no CORS headers for cross-origin preflight, got %q",
 			w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+// TestCSRFStrictEnforcement verifies that the CSRF middleware does NOT have a
+// fallback: a POST with a valid session cookie but without the X-CSRF-Token
+// header must be rejected, even if the CSRF cookie is present and matches the
+// stored token.
+func TestCSRFStrictEnforcement(t *testing.T) {
+	t.Parallel()
+
+	userID := uuid.New()
+	csrfToken := "csrf_token_strict_test_1234567890123456789012345678901234"
+	sessions := &mockSessionLookup{
+		sessions: map[string]sessionInfo{
+			"sess-csrf": {userID: userID, role: "admin", csrfToken: csrfToken},
+		},
+	}
+	apiKeys := &mockAPIKeyLookup{keys: make(map[string]keyInfo)}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := AuthMiddleware(sessions, apiKeys)
+	wrapped := mw(handler)
+
+	tests := []struct {
+		name       string
+		method     string
+		csrfCookie string
+		csrfHeader string
+		wantStatus int
+	}{
+		{
+			name:       "POST with no CSRF header and matching cookie is rejected",
+			method:     http.MethodPost,
+			csrfCookie: csrfToken,
+			csrfHeader: "",
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "PUT with no CSRF header and matching cookie is rejected",
+			method:     http.MethodPut,
+			csrfCookie: csrfToken,
+			csrfHeader: "",
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "DELETE with no CSRF header and matching cookie is rejected",
+			method:     http.MethodDelete,
+			csrfCookie: csrfToken,
+			csrfHeader: "",
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "POST with valid CSRF cookie AND header passes",
+			method:     http.MethodPost,
+			csrfCookie: csrfToken,
+			csrfHeader: csrfToken,
+			wantStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, "/api/v1/agents", nil)
+			req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "sess-csrf"})
+			if tt.csrfCookie != "" {
+				req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName(), Value: tt.csrfCookie})
+			}
+			if tt.csrfHeader != "" {
+				req.Header.Set("X-CSRF-Token", tt.csrfHeader)
+			}
+			w := httptest.NewRecorder()
+
+			wrapped.ServeHTTP(w, req)
+
+			if w.Code != tt.wantStatus {
+				t.Fatalf("expected %d, got %d; body: %s", tt.wantStatus, w.Code, w.Body.String())
+			}
+		})
 	}
 }
 

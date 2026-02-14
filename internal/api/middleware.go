@@ -43,27 +43,23 @@ func AuthMiddleware(sessions SessionLookup, apiKeys APIKeyLookup) func(http.Hand
 			}
 
 			// 2. Check for session cookie
-			cookie, err := r.Cookie(auth.SessionCookieName)
+			cookie, err := r.Cookie(auth.SessionCookieName())
 			if err == nil && cookie.Value != "" {
-				userID, role, csrfToken, err := sessions.GetSessionUser(r.Context(), cookie.Value)
+				userID, role, _, err := sessions.GetSessionUser(r.Context(), cookie.Value)
 				if err != nil {
 					// Invalid or expired session
 					RespondError(w, r, apierrors.Unauthorized("session expired or invalid"))
 					return
 				}
 
-				// Validate CSRF for mutation requests
-				switch r.Method {
-				case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
-					if err := auth.ValidateCSRF(r); err != nil {
-						// Also check that the CSRF cookie value matches the stored token
-						csrfCookie, cookieErr := r.Cookie(auth.CSRFCookieName)
-						if cookieErr != nil || csrfCookie.Value != csrfToken {
-							RespondError(w, r, apierrors.Forbidden("CSRF validation failed"))
-							return
-						}
-					}
+			// Validate CSRF for mutation requests
+			switch r.Method {
+			case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+				if err := auth.ValidateCSRF(r); err != nil {
+					RespondError(w, r, apierrors.Forbidden("CSRF validation failed"))
+					return
 				}
+			}
 
 				// Touch session (update last_seen)
 				sessions.TouchSession(r.Context(), cookie.Value)
@@ -197,19 +193,6 @@ func CORSMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		next.ServeHTTP(w, r)
-	})
-}
-
-// SecurityHeadersMiddleware sets standard security headers on every response.
-func SecurityHeadersMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'")
-		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		next.ServeHTTP(w, r)
 	})
 }

@@ -43,8 +43,6 @@ type OAuthStateCookie struct {
 }
 
 const (
-	// OAuthStateCookieName is the name of the encrypted state cookie.
-	OAuthStateCookieName = "__Host-oauth-state"
 	// oauthStateCookieMaxAge is 5 minutes in seconds.
 	oauthStateCookieMaxAge = 300
 )
@@ -201,11 +199,11 @@ func SetOAuthStateCookie(w http.ResponseWriter, state, codeVerifier string, encK
 	cookieValue := base64.RawURLEncoding.EncodeToString(encrypted)
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     OAuthStateCookieName,
+		Name:     OAuthStateCookieName(),
 		Value:    cookieValue,
 		Path:     "/",
 		MaxAge:   oauthStateCookieMaxAge,
-		Secure:   true,
+		Secure:   secureCookies,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
@@ -215,7 +213,7 @@ func SetOAuthStateCookie(w http.ResponseWriter, state, codeVerifier string, encK
 
 // GetOAuthStateCookie reads and decrypts the OAuth state cookie from the request.
 func GetOAuthStateCookie(r *http.Request, encKey []byte) (*OAuthStateCookie, error) {
-	cookie, err := r.Cookie(OAuthStateCookieName)
+	cookie, err := r.Cookie(OAuthStateCookieName())
 	if err != nil {
 		return nil, fmt.Errorf("reading oauth state cookie: %w", err)
 	}
@@ -241,11 +239,11 @@ func GetOAuthStateCookie(r *http.Request, encKey []byte) (*OAuthStateCookie, err
 // ClearOAuthStateCookie clears the OAuth state cookie.
 func ClearOAuthStateCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     OAuthStateCookieName,
+		Name:     OAuthStateCookieName(),
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   true,
+		Secure:   secureCookies,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})

@@ -52,8 +52,9 @@ func (s *SessionStore) Create(ctx context.Context, sess *Session) error {
 
 // GetByID retrieves a session by ID. Returns nil if the session is expired or idle-timed-out.
 func (s *SessionStore) GetByID(ctx context.Context, id string) (*Session, error) {
+	// Cast ip_address to text so pgx can scan the inet column into a Go string.
 	query := `
-		SELECT id, user_id, csrf_token, ip_address, user_agent, created_at, last_seen, expires_at
+		SELECT id, user_id, csrf_token, ip_address::text, user_agent, created_at, last_seen, expires_at
 		FROM sessions
 		WHERE id = $1
 		  AND expires_at > now()
@@ -102,6 +103,17 @@ func (s *SessionStore) DeleteByUserID(ctx context.Context, userID uuid.UUID) err
 	_, err := s.pool.Exec(ctx, query, userID)
 	if err != nil {
 		return fmt.Errorf("deleting sessions by user: %w", err)
+	}
+	return nil
+}
+
+// DeleteOthersByUserID removes all sessions for a user EXCEPT the specified session.
+// Used during password change to invalidate other sessions while keeping the current one alive.
+func (s *SessionStore) DeleteOthersByUserID(ctx context.Context, userID uuid.UUID, keepSessionID string) error {
+	query := `DELETE FROM sessions WHERE user_id = $1 AND id != $2`
+	_, err := s.pool.Exec(ctx, query, userID, keepSessionID)
+	if err != nil {
+		return fmt.Errorf("deleting other sessions by user: %w", err)
 	}
 	return nil
 }

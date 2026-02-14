@@ -318,3 +318,67 @@ func TestWebhooksHandler_DeleteNotFound(t *testing.T) {
 		t.Fatalf("expected 404, got %d; body: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestWebhooksHandler_CreateSSRFBlocked(t *testing.T) {
+	whStore := newMockWebhookStore()
+	audit := &mockAuditStoreForAPI{}
+	h := NewWebhooksHandler(whStore, audit)
+
+	privateURLs := []string{
+		"http://localhost/hook",
+		"http://127.0.0.1/hook",
+		"http://10.0.0.1/hook",
+		"http://172.16.0.1/hook",
+		"http://192.168.1.1/hook",
+		"http://169.254.169.254/latest/meta-data/",
+	}
+
+	for _, u := range privateURLs {
+		t.Run(u, func(t *testing.T) {
+			req := adminRequest(http.MethodPost, "/api/v1/webhooks", map[string]interface{}{
+				"url":    u,
+				"secret": "s",
+				"events": []string{"agent.created"},
+			})
+			w := httptest.NewRecorder()
+
+			h.Create(w, req)
+
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400 for SSRF URL %s, got %d; body: %s", u, w.Code, w.Body.String())
+			}
+
+			env := parseEnvelope(t, w)
+			if env.Success {
+				t.Fatal("expected success=false")
+			}
+			errMap, ok := env.Error.(map[string]interface{})
+			if !ok {
+				t.Fatal("expected error to be a map")
+			}
+			msg, _ := errMap["message"].(string)
+			if !contains(msg, "private") {
+				t.Fatalf("expected error about private address, got %q", msg)
+			}
+		})
+	}
+}
+
+func TestWebhooksHandler_CreatePublicURLAllowed(t *testing.T) {
+	whStore := newMockWebhookStore()
+	audit := &mockAuditStoreForAPI{}
+	h := NewWebhooksHandler(whStore, audit)
+
+	req := adminRequest(http.MethodPost, "/api/v1/webhooks", map[string]interface{}{
+		"url":    "https://hooks.example.com/webhook",
+		"secret": "my-secret",
+		"events": []string{"agent.created"},
+	})
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for public URL, got %d; body: %s", w.Code, w.Body.String())
+	}
+}

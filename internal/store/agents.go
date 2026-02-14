@@ -241,13 +241,25 @@ func (s *AgentStore) Patch(ctx context.Context, id string, fields map[string]int
 
 	// Apply patch fields
 	if v, ok := fields["name"]; ok {
-		agent.Name = v.(string)
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("name must be a string")
+		}
+		agent.Name = s
 	}
 	if v, ok := fields["description"]; ok {
-		agent.Description = v.(string)
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("description must be a string")
+		}
+		agent.Description = s
 	}
 	if v, ok := fields["system_prompt"]; ok {
-		agent.SystemPrompt = v.(string)
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("system_prompt must be a string")
+		}
+		agent.SystemPrompt = s
 	}
 	if v, ok := fields["tools"]; ok {
 		raw, err := json.Marshal(v)
@@ -271,10 +283,12 @@ func (s *AgentStore) Patch(ctx context.Context, id string, fields map[string]int
 		agent.ExamplePrompts = raw
 	}
 	if v, ok := fields["is_active"]; ok {
-		agent.IsActive = v.(bool)
+		b, ok := v.(bool)
+		if !ok {
+			return nil, fmt.Errorf("is_active must be a boolean")
+		}
+		agent.IsActive = b
 	}
-
-	agent.CreatedBy = actor
 
 	if err := s.Update(ctx, agent, updatedAt); err != nil {
 		return nil, err

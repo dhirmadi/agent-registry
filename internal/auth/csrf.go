@@ -14,24 +14,41 @@ const (
 // NOT HttpOnly so JavaScript can read it.
 func SetCSRFCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     CSRFCookieName,
+		Name:     CSRFCookieName(),
 		Value:    token,
 		Path:     "/",
 		MaxAge:   SessionCookieMaxAge,
-		Secure:   true,
+		Secure:   secureCookies,
 		HttpOnly: false, // JS needs to read this
 		SameSite: http.SameSiteLaxMode,
 	})
 }
 
 // ClearCSRFCookie clears the CSRF cookie by setting MaxAge=-1.
+// It clears BOTH the __Host-csrf and csrf cookie names to ensure
+// stale cookies from a different mode (HTTPS→HTTP or vice versa) are removed.
 func ClearCSRFCookie(w http.ResponseWriter) {
+	// Clear the current-mode cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     CSRFCookieName,
+		Name:     CSRFCookieName(),
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   true,
+		Secure:   secureCookies,
+		HttpOnly: false,
+		SameSite: http.SameSiteLaxMode,
+	})
+	// Also clear the opposite-mode cookie name to prevent stale duplicates.
+	// Browsers may hold both if the deployment switched between HTTP and HTTPS.
+	altName := "csrf"
+	if !secureCookies {
+		altName = "__Host-csrf"
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     altName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
 		HttpOnly: false,
 		SameSite: http.SameSiteLaxMode,
 	})
@@ -47,7 +64,7 @@ func ValidateCSRF(r *http.Request) error {
 		return nil
 	}
 
-	cookie, err := r.Cookie(CSRFCookieName)
+	cookie, err := r.Cookie(CSRFCookieName())
 	if err != nil {
 		return errors.New("missing CSRF cookie")
 	}

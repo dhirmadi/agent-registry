@@ -115,7 +115,7 @@ func TestSecurity_CSRFMissing(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodPost, setup.server.URL+"/api/v1/agents", &buf)
 	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "valid-session"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "valid-session"})
 	// Deliberately omit both CSRF cookie and header
 
 	resp, err := client.Do(req)
@@ -145,8 +145,8 @@ func TestSecurity_CSRFMismatchedCookieAndHeader(t *testing.T) {
 	// cannot read the victim's CSRF cookie and sends their own header value.
 	req, _ := http.NewRequest(http.MethodPost, setup.server.URL+"/api/v1/agents", &buf)
 	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "valid-session"})
-	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName, Value: "attacker-cookie-value"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "valid-session"})
+	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName(), Value: "attacker-cookie-value"})
 	req.Header.Set("X-CSRF-Token", "attacker-header-value")
 
 	resp, err := client.Do(req)
@@ -166,7 +166,7 @@ func TestSecurity_ExpiredSession(t *testing.T) {
 	client := securityClient()
 
 	req, _ := http.NewRequest(http.MethodGet, setup.server.URL+"/api/v1/agents", nil)
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "expired-session-id"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "expired-session-id"})
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -185,7 +185,7 @@ func TestSecurity_ForgedSessionID(t *testing.T) {
 	client := securityClient()
 
 	req, _ := http.NewRequest(http.MethodGet, setup.server.URL+"/api/v1/agents", nil)
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "totally-random-forged-session-id-1234567890abcdef"})
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName(), Value: "totally-random-forged-session-id-1234567890abcdef"})
 
 	resp, err := client.Do(req)
 	if err != nil {

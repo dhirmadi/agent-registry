@@ -288,6 +288,19 @@ func (s *UserStore) ResetAuth(ctx context.Context, id uuid.UUID, passwordHash st
 	return nil
 }
 
+// GetMustChangePass returns whether a user must change their password.
+func (s *UserStore) GetMustChangePass(ctx context.Context, userID uuid.UUID) (bool, error) {
+	var mustChange bool
+	err := s.pool.QueryRow(ctx, "SELECT must_change_pass FROM users WHERE id = $1", userID).Scan(&mustChange)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return false, errors.NotFound("user", userID.String())
+		}
+		return false, fmt.Errorf("getting must_change_pass: %w", err)
+	}
+	return mustChange, nil
+}
+
 // CountAdmins returns the number of active admin users.
 func (s *UserStore) CountAdmins(ctx context.Context) (int, error) {
 	query := `SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = true`

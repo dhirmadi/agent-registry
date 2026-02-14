@@ -55,6 +55,7 @@ type SessionForAuth interface {
 	GetByID(ctx context.Context, id string) (*SessionRecord, error)
 	Delete(ctx context.Context, id string) error
 	DeleteByUserID(ctx context.Context, userID uuid.UUID) error
+	DeleteOthersByUserID(ctx context.Context, userID uuid.UUID, keepSessionID string) error
 }
 
 // SessionRecord is the session data used by the auth handler.
@@ -150,14 +151,15 @@ type loginResponse struct {
 }
 
 type userResponse struct {
-	ID          uuid.UUID  `json:"id"`
-	Username    string     `json:"username"`
-	Email       string     `json:"email"`
-	DisplayName string     `json:"display_name"`
-	Role        string     `json:"role"`
-	AuthMethod  string     `json:"auth_method"`
-	IsActive    bool       `json:"is_active"`
-	LastLoginAt *time.Time `json:"last_login_at"`
+	ID             uuid.UUID  `json:"id"`
+	Username       string     `json:"username"`
+	Email          string     `json:"email"`
+	DisplayName    string     `json:"display_name"`
+	Role           string     `json:"role"`
+	AuthMethod     string     `json:"auth_method"`
+	IsActive       bool       `json:"is_active"`
+	MustChangePass bool       `json:"must_change_password"`
+	LastLoginAt    *time.Time `json:"last_login_at"`
 }
 
 // HandleLogin handles POST /auth/login.
@@ -247,7 +249,8 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set cookies
+	// Clear any stale cookies from prior sessions / mode switches, then set fresh ones.
+	ClearCSRFCookie(w)
 	setSessionCookie(w, sessionID)
 	SetCSRFCookie(w, csrfToken)
 
@@ -270,7 +273,7 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleLogout handles POST /auth/logout.
 func (h *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(SessionCookieName)
+	cookie, err := r.Cookie(SessionCookieName())
 	if err != nil {
 		respondError(w, r, apierrors.Unauthorized("not authenticated"))
 		return
@@ -303,14 +306,15 @@ func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, r, http.StatusOK, userResponse{
-		ID:          user.ID,
-		Username:    user.Username,
-		Email:       user.Email,
-		DisplayName: user.DisplayName,
-		Role:        user.Role,
-		AuthMethod:  user.AuthMethod,
-		IsActive:    user.IsActive,
-		LastLoginAt: user.LastLoginAt,
+		ID:             user.ID,
+		Username:       user.Username,
+		Email:          user.Email,
+		DisplayName:    user.DisplayName,
+		Role:           user.Role,
+		AuthMethod:     user.AuthMethod,
+		IsActive:       user.IsActive,
+		MustChangePass: user.MustChangePass,
+		LastLoginAt:    user.LastLoginAt,
 	})
 }
 
@@ -370,8 +374,19 @@ func (h *Handler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Invalidate all other sessions for this user
-	h.sessions.DeleteByUserID(r.Context(), userID)
+	// Invalidate all OTHER sessions for this user, keeping the current one alive.
+	// Without this, the user's active session is destroyed and they get
+	// "session expired or invalid" immediately after the password change succeeds.
+	currentSessionID := ""
+	if cookie, err := r.Cookie(SessionCookieName()); err == nil {
+		currentSessionID = cookie.Value
+	}
+	if currentSessionID != "" {
+		h.sessions.DeleteOthersByUserID(r.Context(), userID, currentSessionID)
+	} else {
+		// Fallback: no session cookie found (e.g., API key auth) — delete all sessions
+		h.sessions.DeleteByUserID(r.Context(), userID)
+	}
 
 	h.auditLog(r, user.Username, &user.ID, "password_change", "user", user.ID.String(), nil)
 
@@ -393,11 +408,11 @@ func lockoutDuration(failedLogins int) time.Duration {
 
 func setSessionCookie(w http.ResponseWriter, sessionID string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     SessionCookieName,
+		Name:     SessionCookieName(),
 		Value:    sessionID,
 		Path:     "/",
 		MaxAge:   SessionCookieMaxAge,
-		Secure:   true,
+		Secure:   secureCookies,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
@@ -405,11 +420,11 @@ func setSessionCookie(w http.ResponseWriter, sessionID string) {
 
 func clearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     SessionCookieName,
+		Name:     SessionCookieName(),
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   true,
+		Secure:   secureCookies,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
@@ -556,7 +571,8 @@ func (h *Handler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set cookies
+	// Clear any stale cookies from prior sessions / mode switches, then set fresh ones.
+	ClearCSRFCookie(w)
 	setSessionCookie(w, sessionID)
 	SetCSRFCookie(w, csrfToken)
 

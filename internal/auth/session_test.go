@@ -77,10 +77,21 @@ func TestSessionConstants(t *testing.T) {
 	if SessionIdleTimeout.Minutes() != 30 {
 		t.Fatalf("expected idle timeout of 30 minutes, got %v", SessionIdleTimeout)
 	}
-	if SessionCookieName != "__Host-session" {
-		t.Fatalf("expected cookie name __Host-session, got %s", SessionCookieName)
+	// Default mode is secure (HTTPS) — __Host- prefix
+	if SessionCookieName() != "__Host-session" {
+		t.Fatalf("expected cookie name __Host-session, got %s", SessionCookieName())
 	}
-	if CSRFCookieName != "__Host-csrf" {
-		t.Fatalf("expected CSRF cookie name __Host-csrf, got %s", CSRFCookieName)
+	if CSRFCookieName() != "__Host-csrf" {
+		t.Fatalf("expected CSRF cookie name __Host-csrf, got %s", CSRFCookieName())
+	}
+
+	// HTTP mode uses plain names
+	SetSecureCookies(false)
+	defer SetSecureCookies(true)
+	if SessionCookieName() != "session" {
+		t.Fatalf("expected cookie name session in HTTP mode, got %s", SessionCookieName())
+	}
+	if CSRFCookieName() != "csrf" {
+		t.Fatalf("expected CSRF cookie name csrf in HTTP mode, got %s", CSRFCookieName())
 	}
 }

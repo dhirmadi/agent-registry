@@ -298,6 +298,63 @@ func TestDispatchWithNoSubscriptions(t *testing.T) {
 	}
 }
 
+func TestDispatcherStopDrainsEvents(t *testing.T) {
+	var delivered atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		delivered.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer srv.Close()
+
+	loader := &mockLoader{
+		subs: []Subscription{{
+			ID:     uuid.New(),
+			URL:    srv.URL,
+			Secret: "",
+			Events: []string{"test.event"},
+		}},
+	}
+
+	d := NewDispatcher(loader, Config{Workers: 1, MaxRetries: 0, Timeout: 5 * time.Second})
+	d.Start()
+
+	// Send several events
+	for i := 0; i < 5; i++ {
+		d.Dispatch(Event{
+			Type:         "test.event",
+			ResourceType: "test",
+			ResourceID:   "drain-test",
+			Timestamp:    time.Now().UTC().Format(time.RFC3339),
+			Actor:        "user",
+		})
+	}
+
+	// Stop should drain all pending events
+	d.Stop()
+
+	count := delivered.Load()
+	if count != 5 {
+		t.Fatalf("expected all 5 events to be delivered during drain, got %d", count)
+	}
+}
+
+func TestDispatchAfterStopIsIgnored(t *testing.T) {
+	loader := &mockLoader{subs: []Subscription{}}
+	d := NewDispatcher(loader, Config{Workers: 1, MaxRetries: 0, Timeout: 5 * time.Second})
+	d.Start()
+	d.Stop()
+
+	// Should not panic or send to closed channel
+	d.Dispatch(Event{
+		Type:         "test.event",
+		ResourceType: "test",
+		ResourceID:   "post-stop",
+		Timestamp:    time.Now().UTC().Format(time.RFC3339),
+		Actor:        "user",
+	})
+}
+
 func TestComputeHMAC(t *testing.T) {
 	tests := []struct {
 		name   string

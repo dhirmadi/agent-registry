@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -56,6 +57,13 @@ func run() error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
+	}
+
+	// Configure cookie security based on EXTERNAL_URL scheme.
+	// __Host- cookies require Secure flag, which requires HTTPS.
+	if strings.HasPrefix(cfg.ExternalURL, "http://") {
+		internalAuth.SetSecureCookies(false)
+		log.Println("warning: running in HTTP mode — cookies are NOT secure (dev only)")
 	}
 
 	log.Printf("starting agentic-registry on port %s", cfg.Port)
@@ -200,6 +208,7 @@ func run() error {
 	contextConfigHandler := api.NewContextConfigHandler(contextConfigStore, auditStore, dispatcher)
 	signalConfigHandler := api.NewSignalConfigHandler(signalConfigStore, auditStore, dispatcher)
 	webhooksHandler := api.NewWebhooksHandler(webhookStore, auditStore)
+	auditLogHandler := api.NewAuditHandler(auditStore)
 	discoveryHandler := api.NewDiscoveryHandler(agentStore, mcpServerStore, trustDefaultStore, modelConfigStore, contextConfigStore, signalConfigStore)
 
 	// Set up router
@@ -219,7 +228,9 @@ func run() error {
 		SignalConfig:  signalConfigHandler,
 		Webhooks:      webhooksHandler,
 		Discovery:     discoveryHandler,
+		AuditLog:      auditLogHandler,
 		AuthMW:        authMW,
+		UserLookup:    &userLookupAdapter{store: userStore},
 		RateLimiter:   rateLimiter,
 		WebFS:         web.FS,
 	})
@@ -560,6 +571,10 @@ func (a *authSessionStoreAdapter) DeleteByUserID(ctx context.Context, userID uui
 	return a.store.DeleteByUserID(ctx, userID)
 }
 
+func (a *authSessionStoreAdapter) DeleteOthersByUserID(ctx context.Context, userID uuid.UUID, keepSessionID string) error {
+	return a.store.DeleteOthersByUserID(ctx, userID, keepSessionID)
+}
+
 // authAuditStoreAdapter bridges store.AuditStore to auth.AuditForAuth.
 type authAuditStoreAdapter struct {
 	store *store.AuditStore
@@ -628,6 +643,15 @@ func storeOAuthConnToAuthRecord(c *store.OAuthConnection) *internalAuth.OAuthCon
 		Email:       c.Email,
 		DisplayName: c.DisplayName,
 	}
+}
+
+// userLookupAdapter implements api.UserLookup for MustChangePassMiddleware.
+type userLookupAdapter struct {
+	store *store.UserStore
+}
+
+func (a *userLookupAdapter) GetMustChangePass(ctx context.Context, userID uuid.UUID) (bool, error) {
+	return a.store.GetMustChangePass(ctx, userID)
 }
 
 // agentExistsAdapter implements api.AgentLookupForAPI for trigger rule validation.

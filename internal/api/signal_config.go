@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -122,14 +123,16 @@ func (h *SignalConfigHandler) auditLog(r *http.Request, action, resourceType, re
 		return
 	}
 	callerID, _ := auth.UserIDFromContext(r.Context())
-	h.audit.Insert(r.Context(), &store.AuditEntry{
+	if err := h.audit.Insert(r.Context(), &store.AuditEntry{
 		Actor:        callerID.String(),
 		ActorID:      &callerID,
 		Action:       action,
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
-	})
+	}); err != nil {
+		log.Printf("audit log failed for %s %s/%s: %v", action, resourceType, resourceID, err)
+	}
 }
 
 func (h *SignalConfigHandler) dispatchEvent(r *http.Request, eventType, resourceType, resourceID string) {

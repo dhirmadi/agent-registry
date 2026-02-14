@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -242,7 +243,11 @@ func (h *AgentsHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	agent, err := h.agents.GetByID(r.Context(), agentID)
 	if err != nil {
-		RespondError(w, r, apierrors.NotFound("agent", agentID))
+		if isNotFoundError(err) {
+			RespondError(w, r, apierrors.NotFound("agent", agentID))
+		} else {
+			RespondError(w, r, apierrors.Internal("failed to retrieve agent"))
+		}
 		return
 	}
 
@@ -265,6 +270,9 @@ func (h *AgentsHandler) List(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	if limit <= 0 {
 		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
 	}
 	if offset < 0 {
 		offset = 0
@@ -330,8 +338,6 @@ func (h *AgentsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, _ := auth.UserIDFromContext(r.Context())
-
 	// Apply all fields (PUT = full update)
 	existing.Name = req.Name
 	existing.Description = req.Description
@@ -348,7 +354,6 @@ func (h *AgentsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.IsActive != nil {
 		existing.IsActive = *req.IsActive
 	}
-	existing.CreatedBy = userID.String()
 
 	if err := h.agents.Update(r.Context(), existing, etag); err != nil {
 		if isConflictError(err) {
@@ -437,6 +442,9 @@ func (h *AgentsHandler) ListVersions(w http.ResponseWriter, r *http.Request) {
 	if limit <= 0 {
 		limit = 20
 	}
+	if limit > 200 {
+		limit = 200
+	}
 	if offset < 0 {
 		offset = 0
 	}
@@ -514,14 +522,16 @@ func (h *AgentsHandler) auditLog(r *http.Request, action, resourceType, resource
 		return
 	}
 	callerID, _ := auth.UserIDFromContext(r.Context())
-	h.audit.Insert(r.Context(), &store.AuditEntry{
+	if err := h.audit.Insert(r.Context(), &store.AuditEntry{
 		Actor:        callerID.String(),
 		ActorID:      &callerID,
 		Action:       action,
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
 		IPAddress:    clientIPFromRequest(r),
-	})
+	}); err != nil {
+		log.Printf("audit log failed for %s %s/%s: %v", action, resourceType, resourceID, err)
+	}
 }
 
 func (h *AgentsHandler) dispatchEvent(r *http.Request, eventType, resourceType, resourceID string) {

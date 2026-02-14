@@ -44,7 +44,7 @@ func TestLoad_Defaults(t *testing.T) {
 	env := map[string]string{
 		"DATABASE_URL":              "postgres://localhost/test",
 		"SESSION_SECRET":            "abc123",
-		"CREDENTIAL_ENCRYPTION_KEY": "def456",
+		"CREDENTIAL_ENCRYPTION_KEY": "12345678901234567890123456789012",
 	}
 
 	cfg, err := LoadFrom(env)
@@ -94,7 +94,7 @@ func TestLoad_CustomValues(t *testing.T) {
 	env := map[string]string{
 		"DATABASE_URL":                "postgres://custom:5432/mydb",
 		"SESSION_SECRET":              "my-secret",
-		"CREDENTIAL_ENCRYPTION_KEY":   "my-key",
+		"CREDENTIAL_ENCRYPTION_KEY":   "my-key-1234567890123456789012345",
 		"PORT":                        "9090",
 		"LOG_LEVEL":                   "debug",
 		"EXTERNAL_URL":                "https://registry.example.com",
@@ -147,11 +147,60 @@ func TestLoad_CustomValues(t *testing.T) {
 	}
 }
 
+func TestLoad_EncryptionKeyLength(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     string
+		wantErr bool
+	}{
+		{
+			name:    "valid 32-byte key",
+			key:     "12345678901234567890123456789012",
+			wantErr: false,
+		},
+		{
+			name:    "too short key (16 bytes)",
+			key:     "1234567890123456",
+			wantErr: true,
+		},
+		{
+			name:    "too long key (64 bytes)",
+			key:     "1234567890123456789012345678901234567890123456789012345678901234",
+			wantErr: true,
+		},
+		{
+			name:    "3-byte key",
+			key:     "def",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			env := map[string]string{
+				"DATABASE_URL":              "postgres://localhost/test",
+				"SESSION_SECRET":            "abc123",
+				"CREDENTIAL_ENCRYPTION_KEY": tc.key,
+			}
+			_, err := LoadFrom(env)
+			if tc.wantErr && err == nil {
+				t.Fatal("expected error for invalid key length, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("expected no error for valid key, got %v", err)
+			}
+			if tc.wantErr && err != nil && !contains(err.Error(), "32 bytes") {
+				t.Errorf("expected error to mention 32 bytes, got %q", err.Error())
+			}
+		})
+	}
+}
+
 func TestLoad_InvalidIntValues(t *testing.T) {
 	env := map[string]string{
 		"DATABASE_URL":              "postgres://localhost/test",
 		"SESSION_SECRET":            "abc",
-		"CREDENTIAL_ENCRYPTION_KEY": "def",
+		"CREDENTIAL_ENCRYPTION_KEY": "12345678901234567890123456789012",
 		"WEBHOOK_TIMEOUT":           "not-a-number",
 	}
 
