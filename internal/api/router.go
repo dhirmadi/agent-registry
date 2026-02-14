@@ -6,9 +6,13 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/agent-smit/agentic-registry/internal/auth"
+	"github.com/agent-smit/agentic-registry/internal/ratelimit"
 )
 
 // AuthRouteHandler defines the methods the router needs from the auth handler.
@@ -40,7 +44,8 @@ type RouterConfig struct {
 	Webhooks      *WebhooksHandler
 	Discovery     *DiscoveryHandler
 	AuthMW        func(http.Handler) http.Handler
-	WebFS         fs.FS // Embedded SPA filesystem (nil = no SPA serving)
+	RateLimiter   *ratelimit.RateLimiter // nil = no rate limiting
+	WebFS         fs.FS                  // Embedded SPA filesystem (nil = no SPA serving)
 }
 
 // NewRouter creates the chi router with middleware and all routes.
@@ -62,7 +67,14 @@ func NewRouter(cfg RouterConfig) chi.Router {
 	if cfg.Auth != nil {
 		r.Route("/auth", func(r chi.Router) {
 			// Public auth routes (no auth required)
-			r.Post("/login", cfg.Auth.HandleLogin)
+			// Rate limit login: 5 requests/minute per IP (brute-force protection)
+			if cfg.RateLimiter != nil {
+				r.With(cfg.RateLimiter.Middleware(5, time.Minute, func(r *http.Request) string {
+					return "login:" + r.RemoteAddr
+				})).Post("/login", cfg.Auth.HandleLogin)
+			} else {
+				r.Post("/login", cfg.Auth.HandleLogin)
+			}
 			r.Get("/google/start", cfg.Auth.HandleGoogleStart)
 			r.Get("/google/callback", cfg.Auth.HandleGoogleCallback)
 
@@ -83,6 +95,16 @@ func NewRouter(cfg RouterConfig) chi.Router {
 	r.Route("/api/v1", func(r chi.Router) {
 		if cfg.AuthMW != nil {
 			r.Use(cfg.AuthMW)
+		}
+
+		// Rate limit API: 100 requests/minute per authenticated user
+		if cfg.RateLimiter != nil {
+			r.Use(cfg.RateLimiter.Middleware(100, time.Minute, func(r *http.Request) string {
+				if uid, ok := auth.UserIDFromContext(r.Context()); ok {
+					return "api:" + uid.String()
+				}
+				return "api:" + r.RemoteAddr
+			}))
 		}
 
 		// Users (admin only)

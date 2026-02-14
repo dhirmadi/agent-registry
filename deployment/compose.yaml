@@ -1,0 +1,56 @@
+# Agentic Registry — Docker Compose
+# Usage: podman-compose -f deployment/compose.yaml up
+#
+# Copy .env.example to .env and fill in real values before starting.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-registry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-registry}
+      POSTGRES_DB: ${POSTGRES_DB:-agentic_registry}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-registry}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  registry:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-registry}:${POSTGRES_PASSWORD:-registry}@db:5432/${POSTGRES_DB:-agentic_registry}?sslmode=disable
+      SESSION_SECRET: ${SESSION_SECRET}
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY}
+      PORT: ${PORT:-8090}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      EXTERNAL_URL: ${EXTERNAL_URL:-http://localhost:8090}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      WEBHOOK_TIMEOUT: ${WEBHOOK_TIMEOUT:-5}
+      WEBHOOK_RETRIES: ${WEBHOOK_RETRIES:-3}
+      WEBHOOK_WORKERS: ${WEBHOOK_WORKERS:-4}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-agentic-registry}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "${PORT:-8090}:${PORT:-8090}"
+    healthcheck:
+      test: ["CMD", "/healthcheck"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  pgdata:

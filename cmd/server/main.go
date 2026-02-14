@@ -21,6 +21,7 @@ import (
 	"github.com/agent-smit/agentic-registry/internal/config"
 	"github.com/agent-smit/agentic-registry/internal/db"
 	"github.com/agent-smit/agentic-registry/internal/notify"
+	"github.com/agent-smit/agentic-registry/internal/ratelimit"
 	"github.com/agent-smit/agentic-registry/internal/seed"
 	"github.com/agent-smit/agentic-registry/internal/store"
 	"github.com/agent-smit/agentic-registry/internal/telemetry"
@@ -156,6 +157,9 @@ func run() error {
 		users:   userStore,
 	}
 
+	// Create rate limiter
+	rateLimiter := ratelimit.NewRateLimiter()
+
 	// Create auth middleware
 	authMW := api.AuthMiddleware(sessionLookup, apiKeyLookup)
 
@@ -216,6 +220,7 @@ func run() error {
 		Webhooks:      webhooksHandler,
 		Discovery:     discoveryHandler,
 		AuthMW:        authMW,
+		RateLimiter:   rateLimiter,
 		WebFS:         web.FS,
 	})
 
