@@ -30,7 +30,7 @@ You are a security-focused engineer auditing the Agentic Registry for vulnerabil
 - [ ] Session expiry: 8h absolute, 30min idle (sliding)
 - [ ] Session cleanup goroutine runs every 10 minutes
 - [ ] OAuth state parameter validated, PKCE used
-- [ ] API keys stored as SHA-256 hashes, prefixed `rk_live_`
+- [ ] API keys stored as SHA-256 hashes, prefixed `areg_`
 - [ ] `must_change_pass` enforced on first-boot admin
 
 ### Authorization
