@@ -16,6 +16,7 @@ import {
 } from '@patternfly/react-table';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../components/ToastNotifications';
 import { StatusBadge } from '../components/StatusBadge';
 import type { SignalConfig } from '../types';
 
@@ -26,6 +27,7 @@ interface SignalsResponse {
 
 export function SignalsPage() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const canWrite = user?.role === 'admin' || user?.role === 'editor';
 
   const [signals, setSignals] = useState<SignalConfig[]>([]);
@@ -40,7 +42,7 @@ export function SignalsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.get<SignalsResponse>('/api/v1/config/signals');
+      const data = await api.get<SignalsResponse>('/api/v1/signal-config');
       setSignals(data.items ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load signal configs');
@@ -55,14 +57,14 @@ export function SignalsPage() {
 
   async function handleToggleEnabled(signal: SignalConfig) {
     try {
-      await api.patch(
-        `/api/v1/config/signals/${signal.id}`,
+      await api.put(
+        `/api/v1/signal-config/${signal.id}`,
         { is_enabled: !signal.is_enabled },
         signal.updated_at,
       );
       await fetchSignals();
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
   }
 
@@ -73,15 +75,15 @@ export function SignalsPage() {
 
   async function saveInterval(signal: SignalConfig) {
     try {
-      await api.patch(
-        `/api/v1/config/signals/${signal.id}`,
+      await api.put(
+        `/api/v1/signal-config/${signal.id}`,
         { poll_interval: editInterval },
         signal.updated_at,
       );
       setEditingId(null);
       await fetchSignals();
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
   }
 

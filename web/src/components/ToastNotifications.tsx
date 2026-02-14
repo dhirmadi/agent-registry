@@ -52,7 +52,6 @@ export function ToastProvider({ children }: ToastProviderProps) {
     (variant: ToastVariant, title: string, message?: string) => {
       const id = nextId.current++;
       setToasts((prev) => [...prev, { id, variant, title, message }]);
-      setTimeout(() => removeToast(id), 5000);
     },
     [removeToast],
   );
@@ -72,6 +71,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
               <AlertActionCloseButton onClose={() => removeToast(toast.id)} />
             }
             timeout={5000}
+            onTimeout={() => removeToast(toast.id)}
           >
             {toast.message}
           </Alert>

@@ -19,6 +19,7 @@ import {
 import { Table, Thead, Tr, Th, Tbody, Td } from '@patternfly/react-table';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../components/ToastNotifications';
 import { StatusBadge } from '../components/StatusBadge';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Webhook } from '../types';
@@ -48,6 +49,7 @@ const ALL_EVENTS = [
 
 export function WebhooksPage() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const canWrite = user?.role === 'admin' || user?.role === 'editor';
 
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
@@ -103,8 +105,8 @@ export function WebhooksPage() {
     try {
       await api.delete(`/api/v1/webhooks/${webhookId}`);
       await fetchWebhooks();
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
     setConfirmDelete(null);
   }
@@ -113,10 +115,10 @@ export function WebhooksPage() {
     try {
       await api.patch(`/api/v1/webhooks/${webhook.id}`, {
         is_active: !webhook.is_active,
-      });
+      }, webhook.updated_at);
       await fetchWebhooks();
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
   }
 

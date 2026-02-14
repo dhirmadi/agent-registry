@@ -39,7 +39,7 @@ export function ModelConfigPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.get<ModelConfig>('/api/v1/config/model?scope=global');
+      const data = await api.get<ModelConfig>('/api/v1/model-config');
       setConfig(data);
       setDefaultModel(data.default_model);
       setTemperature(data.temperature);
@@ -67,7 +67,7 @@ export function ModelConfigPage() {
     setSaveSuccess(false);
     try {
       await api.put(
-        '/api/v1/config/model',
+        '/api/v1/model-config',
         {
           scope: 'global',
           default_model: defaultModel,

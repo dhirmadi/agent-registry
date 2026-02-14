@@ -24,6 +24,7 @@ import {
 } from '@patternfly/react-table';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../components/ToastNotifications';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { TrustDefault, TrustRule } from '../types';
 
@@ -41,6 +42,7 @@ const TIER_OPTIONS: TrustDefault['tier'][] = ['auto', 'review', 'block'];
 
 export function TrustPage() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const canWrite = user?.role === 'admin' || user?.role === 'editor';
 
   // System Defaults
@@ -67,7 +69,7 @@ export function TrustPage() {
     setDefaultsLoading(true);
     setDefaultsError(null);
     try {
-      const data = await api.get<TrustDefaultsResponse>('/api/v1/trust/defaults');
+      const data = await api.get<TrustDefaultsResponse>('/api/v1/trust-defaults');
       setDefaults(data.items ?? []);
     } catch (err) {
       setDefaultsError(err instanceof Error ? err.message : 'Failed to load trust defaults');
@@ -84,7 +86,7 @@ export function TrustPage() {
     setRulesLoading(true);
     setRulesError(null);
     try {
-      const data = await api.get<TrustRulesResponse>(`/api/v1/trust/rules?workspace_id=${encodeURIComponent(wsId)}`);
+      const data = await api.get<TrustRulesResponse>(`/api/v1/workspaces/${encodeURIComponent(wsId)}/trust-rules`);
       setRules(data.items ?? []);
     } catch (err) {
       setRulesError(err instanceof Error ? err.message : 'Failed to load trust rules');
@@ -99,7 +101,7 @@ export function TrustPage() {
 
   async function handleCreateDefault() {
     try {
-      await api.post('/api/v1/trust/defaults', {
+      await api.post('/api/v1/trust-defaults', {
         tier: newDefaultTier,
         patterns: newDefaultPatterns.split(',').map((p) => p.trim()).filter(Boolean),
         priority: Number(newDefaultPriority),
@@ -109,17 +111,17 @@ export function TrustPage() {
       setNewDefaultPatterns('');
       setNewDefaultPriority('0');
       await fetchDefaults();
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
   }
 
   async function handleDeleteDefault(id: string) {
     try {
-      await api.delete(`/api/v1/trust/defaults/${id}`);
+      await api.delete(`/api/v1/trust-defaults/${id}`);
       await fetchDefaults();
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
     setDeleteDefaultId(null);
   }
@@ -130,8 +132,7 @@ export function TrustPage() {
 
   async function handleCreateRule() {
     try {
-      await api.post('/api/v1/trust/rules', {
-        workspace_id: workspaceId,
+      await api.post(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/trust-rules`, {
         tool_pattern: newRulePattern,
         tier: newRuleTier,
       });
@@ -139,17 +140,17 @@ export function TrustPage() {
       setNewRulePattern('');
       setNewRuleTier('auto');
       await fetchRules(workspaceId);
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
   }
 
   async function handleDeleteRule(id: string) {
     try {
-      await api.delete(`/api/v1/trust/rules/${id}`);
+      await api.delete(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/trust-rules/${id}`);
       await fetchRules(workspaceId);
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
     setDeleteRuleId(null);
   }

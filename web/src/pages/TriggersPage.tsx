@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Alert,
   Button,
@@ -26,6 +26,7 @@ import {
 } from '@patternfly/react-table';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../components/ToastNotifications';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { JsonEditor } from '../components/JsonEditor';
 import { StatusBadge } from '../components/StatusBadge';
@@ -46,10 +47,12 @@ const EVENT_TYPES = [
 
 export function TriggersPage() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const canWrite = user?.role === 'admin' || user?.role === 'editor';
 
+  const [workspaceId, setWorkspaceId] = useState('');
   const [triggers, setTriggers] = useState<TriggerRule[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Create modal state
@@ -66,11 +69,19 @@ export function TriggersPage() {
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<TriggerRule | null>(null);
 
-  const fetchTriggers = useCallback(async () => {
+  const basePath = `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/trigger-rules`;
+
+  const fetchTriggers = useCallback(async (wsId: string) => {
+    if (!wsId) {
+      setTriggers([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const data = await api.get<TriggersResponse>('/api/v1/triggers');
+      const data = await api.get<TriggersResponse>(
+        `/api/v1/workspaces/${encodeURIComponent(wsId)}/trigger-rules`,
+      );
       setTriggers(data.items ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load triggers');
@@ -79,20 +90,20 @@ export function TriggersPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchTriggers();
-  }, [fetchTriggers]);
+  function handleSearch() {
+    fetchTriggers(workspaceId);
+  }
 
   async function handleToggleEnabled(trigger: TriggerRule) {
     try {
-      await api.patch(
-        `/api/v1/triggers/${trigger.id}`,
-        { enabled: !trigger.enabled },
+      await api.put(
+        `${basePath}/${trigger.id}`,
+        { ...trigger, enabled: !trigger.enabled },
         trigger.updated_at,
       );
-      await fetchTriggers();
-    } catch {
-      // Error handled by refetch
+      await fetchTriggers(workspaceId);
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
   }
 
@@ -105,7 +116,7 @@ export function TriggersPage() {
         // Use empty object if invalid
       }
 
-      await api.post('/api/v1/triggers', {
+      await api.post(basePath, {
         name: formName,
         event_type: formEventType,
         agent_id: formAgentId,
@@ -118,19 +129,19 @@ export function TriggersPage() {
 
       setCreateOpen(false);
       resetForm();
-      await fetchTriggers();
-    } catch {
-      // Error handled by refetch
+      await fetchTriggers(workspaceId);
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
   }
 
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      await api.delete(`/api/v1/triggers/${deleteTarget.id}`);
-      await fetchTriggers();
-    } catch {
-      // Error handled by refetch
+      await api.delete(`${basePath}/${deleteTarget.id}`);
+      await fetchTriggers(workspaceId);
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
     setDeleteTarget(null);
   }
@@ -146,42 +157,50 @@ export function TriggersPage() {
     setFormSchedule('');
   }
 
-  if (loading) {
-    return (
-      <div data-testid="triggers-loading" style={{ textAlign: 'center', padding: '3rem' }}>
-        <Spinner aria-label="Loading triggers" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="danger" title="Error loading triggers" data-testid="triggers-error">
-        {error}
-      </Alert>
-    );
-  }
-
   return (
     <div>
       <Title headingLevel="h1" style={{ marginBottom: '1.5rem' }}>
         Trigger Rules
       </Title>
 
-      {canWrite && (
-        <Toolbar>
-          <ToolbarContent>
+      <Toolbar>
+        <ToolbarContent>
+          <ToolbarItem>
+            <TextInput
+              aria-label="Workspace ID"
+              placeholder="Enter workspace ID"
+              value={workspaceId}
+              onChange={(_event, val) => setWorkspaceId(val)}
+              data-testid="workspace-id-input"
+            />
+          </ToolbarItem>
+          <ToolbarItem>
+            <Button variant="secondary" onClick={handleSearch} data-testid="search-triggers-btn">
+              Search
+            </Button>
+          </ToolbarItem>
+          {canWrite && workspaceId && (
             <ToolbarItem>
               <Button variant="primary" onClick={() => setCreateOpen(true)} data-testid="create-trigger-btn">
                 Create Trigger
               </Button>
             </ToolbarItem>
-          </ToolbarContent>
-        </Toolbar>
-      )}
+          )}
+        </ToolbarContent>
+      </Toolbar>
 
-      {triggers.length === 0 ? (
-        <Alert variant="info" title="No trigger rules configured" isInline isPlain />
+      {loading ? (
+        <div data-testid="triggers-loading" style={{ textAlign: 'center', padding: '3rem' }}>
+          <Spinner aria-label="Loading triggers" />
+        </div>
+      ) : error ? (
+        <Alert variant="danger" title="Error loading triggers" data-testid="triggers-error">
+          {error}
+        </Alert>
+      ) : triggers.length === 0 && workspaceId ? (
+        <Alert variant="info" title="No trigger rules found for this workspace" isInline isPlain />
+      ) : !workspaceId ? (
+        <Alert variant="info" title="Enter a workspace ID and click Search to view trigger rules" isInline isPlain />
       ) : (
         <Table aria-label="Trigger rules table" data-testid="triggers-table">
           <Thead>

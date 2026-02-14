@@ -1,11 +1,24 @@
 import type { Envelope } from '../types';
 
-/** Read the CSRF token from the __Host-csrf cookie. */
+/**
+ * Read the CSRF token from the csrf cookie.
+ * Over HTTPS the cookie is "__Host-csrf"; over plain HTTP it is "csrf".
+ * We pick the name that matches the current protocol so a stale cookie
+ * left over from a mode switch (HTTP ↔ HTTPS) is never used.
+ * If duplicates exist we take the LAST occurrence (the freshest Set-Cookie wins).
+ */
 function getCSRFToken(): string {
-  const match = document.cookie
-    .split('; ')
-    .find((row) => row.startsWith('__Host-csrf='));
-  return match ? match.split('=')[1] : '';
+  const isSecure = window.location.protocol === 'https:';
+  const name = isSecure ? '__Host-csrf' : 'csrf';
+  const prefix = name + '=';
+
+  let value = '';
+  for (const part of document.cookie.split('; ')) {
+    if (part.startsWith(prefix)) {
+      value = part.substring(prefix.length);
+    }
+  }
+  return value;
 }
 
 export class APIError extends Error {
@@ -56,7 +69,28 @@ export async function apiFetch<T = unknown>(
     return undefined as T;
   }
 
-  const envelope: Envelope<T> = await response.json();
+  // Guard against non-JSON responses (e.g. chi's plain-text 404/405, HTML fallback).
+  // Only reject when Content-Type is explicitly set to something other than JSON.
+  const contentType = response.headers?.get?.('Content-Type') ?? '';
+  if (contentType && !contentType.includes('application/json')) {
+    const text = await response.text();
+    throw new APIError(
+      'NON_JSON_RESPONSE',
+      text.trim() || `Unexpected ${response.status} response`,
+      response.status,
+    );
+  }
+
+  let envelope: Envelope<T>;
+  try {
+    envelope = await response.json();
+  } catch {
+    throw new APIError(
+      'PARSE_ERROR',
+      `Failed to parse response (HTTP ${response.status})`,
+      response.status,
+    );
+  }
 
   if (!envelope.success) {
     const err = envelope.error;

@@ -120,7 +120,7 @@ export function UsersPage() {
 
   async function handleForcePasswordReset(userId: string) {
     try {
-      await api.post(`/api/v1/users/${userId}/force-password-reset`);
+      await api.post(`/api/v1/users/${userId}/reset-auth`);
       setConfirmResetId(null);
       await fetchUsers();
     } catch {

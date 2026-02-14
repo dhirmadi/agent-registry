@@ -17,9 +17,9 @@ const mockUser: User = {
 
 // Helper component to expose auth context for testing
 function AuthConsumer() {
-  const { user, loading } = useAuth();
+  const { user, loading, mustChangePassword } = useAuth();
   if (loading) return <div>Loading...</div>;
-  if (user) return <div>Logged in as {user.username}</div>;
+  if (user) return <div>Logged in as {user.username}{mustChangePassword ? ' (must change)' : ''}</div>;
   return <div>Not logged in</div>;
 }
 
@@ -189,6 +189,56 @@ describe('AuthContext', () => {
     await waitFor(() => {
       expect(screen.getByText('Not logged in')).toBeInTheDocument();
     });
+  });
+
+  it('sets mustChangePassword from /auth/me response', async () => {
+    const userWithFlag: User = { ...mockUser, must_change_password: true };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: userWithFlag,
+        error: null,
+        meta: { timestamp: new Date().toISOString(), request_id: '789' },
+      }),
+    } as Response);
+
+    renderWithProviders(
+      <AuthProvider>
+        <AuthConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Logged in as admin (must change)')).toBeInTheDocument();
+    });
+  });
+
+  it('defaults mustChangePassword to false when /auth/me omits it', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: mockUser,
+        error: null,
+        meta: { timestamp: new Date().toISOString(), request_id: '790' },
+      }),
+    } as Response);
+
+    renderWithProviders(
+      <AuthProvider>
+        <AuthConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Logged in as admin')).toBeInTheDocument();
+    });
+
+    // Must not have the "(must change)" suffix
+    expect(screen.queryByText(/must change/)).not.toBeInTheDocument();
   });
 
   it('throws error when useAuth is used outside AuthProvider', () => {

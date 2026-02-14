@@ -135,7 +135,7 @@ describe('ModelConfigPage', () => {
         (call: unknown[]) => (call[1] as RequestInit)?.method === 'PUT',
       );
       expect(putCall).toBeDefined();
-      expect((putCall![0] as string)).toContain('/api/v1/config/model');
+      expect((putCall![0] as string)).toContain('/api/v1/model-config');
       const headers = new Headers((putCall![1] as RequestInit).headers);
       expect(headers.get('If-Match')).toBe('2026-01-01T00:00:00Z');
     });

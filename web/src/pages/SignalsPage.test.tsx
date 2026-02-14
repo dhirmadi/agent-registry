@@ -10,6 +10,11 @@ vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ user: mockUser }),
 }));
 
+const mockAddToast = vi.fn();
+vi.mock('../components/ToastNotifications', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
+}));
+
 const mockSignals: SignalConfig[] = [
   {
     id: 'sig-1',
@@ -121,11 +126,11 @@ describe('SignalsPage', () => {
     await ue.click(screen.getByTestId('toggle-signal-sig-1'));
 
     await waitFor(() => {
-      const patchCall = fetchMock.mock.calls.find(
-        (call: unknown[]) => (call[1] as RequestInit)?.method === 'PATCH',
+      const putCall = fetchMock.mock.calls.find(
+        (call: unknown[]) => (call[1] as RequestInit)?.method === 'PUT',
       );
-      expect(patchCall).toBeDefined();
-      expect((patchCall![0] as string)).toContain('/api/v1/config/signals/sig-1');
+      expect(putCall).toBeDefined();
+      expect((putCall![0] as string)).toContain('/api/v1/signal-config/sig-1');
     });
   });
 
@@ -150,7 +155,7 @@ describe('SignalsPage', () => {
     await ue.clear(input);
     await ue.type(input, '1m');
 
-    // Mock PATCH and refetch
+    // Mock PUT and refetch
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -158,21 +163,22 @@ describe('SignalsPage', () => {
         success: true,
         data: { ...mockSignals[0], poll_interval: '1m' },
         error: null,
-        meta: { timestamp: new Date().toISOString(), request_id: 'req-patch' },
+        meta: { timestamp: new Date().toISOString(), request_id: 'req-put' },
       }),
+      headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response);
     mockFetchSignalsSuccess([{ ...mockSignals[0], poll_interval: '1m' }, mockSignals[1]]);
 
     await ue.click(screen.getByTestId('save-interval-sig-1'));
 
     await waitFor(() => {
-      const patchCall = fetchMock.mock.calls.find(
+      const putCall = fetchMock.mock.calls.find(
         (call: unknown[]) =>
-          (call[1] as RequestInit)?.method === 'PATCH' &&
-          (call[0] as string).includes('/api/v1/config/signals/sig-1'),
+          (call[1] as RequestInit)?.method === 'PUT' &&
+          (call[0] as string).includes('/api/v1/signal-config/sig-1'),
       );
-      expect(patchCall).toBeDefined();
-      const body = JSON.parse((patchCall![1] as RequestInit).body as string);
+      expect(putCall).toBeDefined();
+      const body = JSON.parse((putCall![1] as RequestInit).body as string);
       expect(body.poll_interval).toBe('1m');
     });
   });

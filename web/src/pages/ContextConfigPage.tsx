@@ -41,7 +41,7 @@ export function ContextConfigPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.get<ContextConfig>('/api/v1/config/context?scope=global');
+      const data = await api.get<ContextConfig>('/api/v1/context-config');
       setConfig(data);
       setMaxTotalTokens(String(data.max_total_tokens));
       setLayerBudgets({ ...data.layer_budgets });
@@ -88,7 +88,7 @@ export function ContextConfigPage() {
     setSaveSuccess(false);
     try {
       await api.put(
-        '/api/v1/config/context',
+        '/api/v1/context-config',
         {
           scope: 'global',
           max_total_tokens: Number(maxTotalTokens),

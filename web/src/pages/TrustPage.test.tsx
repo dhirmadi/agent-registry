@@ -10,6 +10,11 @@ vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ user: mockUser }),
 }));
 
+const mockAddToast = vi.fn();
+vi.mock('../components/ToastNotifications', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
+}));
+
 const mockDefaults: TrustDefault[] = [
   {
     id: 'td-1',
@@ -191,7 +196,7 @@ describe('TrustPage', () => {
         (call: unknown[]) => (call[1] as RequestInit)?.method === 'POST',
       );
       expect(postCall).toBeDefined();
-      expect((postCall![0] as string)).toContain('/api/v1/trust/defaults');
+      expect((postCall![0] as string)).toContain('/api/v1/trust-defaults');
     });
   });
 });

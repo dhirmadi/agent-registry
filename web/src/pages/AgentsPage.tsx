@@ -27,6 +27,7 @@ import {
 import type { IAction } from '@patternfly/react-table';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../components/ToastNotifications';
 import { StatusBadge } from '../components/StatusBadge';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Agent } from '../types';
@@ -39,6 +40,7 @@ interface AgentsListResponse {
 export function AgentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addToast } = useToast();
   const canWrite = user?.role === 'admin' || user?.role === 'editor';
 
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -83,8 +85,8 @@ export function AgentsPage() {
     try {
       await api.delete(`/api/v1/agents/${agentId}`);
       await fetchAgents();
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
     setConfirmDelete(null);
   }
@@ -93,8 +95,8 @@ export function AgentsPage() {
     try {
       await api.patch(`/api/v1/agents/${agent.id}`, { is_active: !agent.is_active }, agent.updated_at);
       await fetchAgents();
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
   }
 

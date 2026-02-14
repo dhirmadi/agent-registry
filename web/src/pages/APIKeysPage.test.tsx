@@ -10,6 +10,11 @@ vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ user: mockUser }),
 }));
 
+const mockAddToast = vi.fn();
+vi.mock('../components/ToastNotifications', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
+}));
+
 const mockKey1: APIKey = {
   id: 'key-1',
   name: 'CI Pipeline',

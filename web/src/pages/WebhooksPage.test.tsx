@@ -10,6 +10,11 @@ vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ user: mockUser }),
 }));
 
+const mockAddToast = vi.fn();
+vi.mock('../components/ToastNotifications', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
+}));
+
 const mockWebhook1: Webhook = {
   id: 'wh-1',
   url: 'https://example.com/hook1',

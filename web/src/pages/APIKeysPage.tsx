@@ -19,6 +19,7 @@ import {
 import { Table, Thead, Tr, Th, Tbody, Td } from '@patternfly/react-table';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../components/ToastNotifications';
 import { StatusBadge } from '../components/StatusBadge';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { APIKey, APIKeyCreateResponse } from '../types';
@@ -32,6 +33,7 @@ const ALL_SCOPES = ['read', 'write', 'admin'];
 
 export function APIKeysPage() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const canWrite = user?.role === 'admin' || user?.role === 'editor';
 
   const [keys, setKeys] = useState<APIKey[]>([]);
@@ -93,8 +95,8 @@ export function APIKeysPage() {
     try {
       await api.delete(`/api/v1/api-keys/${keyId}`);
       await fetchKeys();
-    } catch {
-      // Error handled by refetch
+    } catch (err) {
+      addToast('danger', 'Operation failed', err instanceof Error ? err.message : 'An unknown error occurred');
     }
     setConfirmRevoke(null);
   }

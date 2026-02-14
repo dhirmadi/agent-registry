@@ -20,6 +20,11 @@ vi.mock('../auth/AuthContext', () => ({
   useAuth: () => ({ user: mockUser }),
 }));
 
+const mockAddToast = vi.fn();
+vi.mock('../components/ToastNotifications', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
+}));
+
 const mockAgent1: Agent = {
   id: 'pmo',
   name: 'PMO Agent',

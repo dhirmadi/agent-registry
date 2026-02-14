@@ -9,6 +9,7 @@ interface AuthContextValue {
   mustChangePassword: boolean;
   login: (username: string, password: string) => Promise<LoginResponse>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.get<User>('/auth/me')
       .then((u) => {
         setUser(u);
+        setMustChangePassword(u.must_change_password ?? false);
       })
       .catch(() => {
         setUser(null);
@@ -44,8 +46,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMustChangePassword(false);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const u = await api.get<User>('/auth/me');
+    setUser(u);
+    setMustChangePassword(u.must_change_password ?? false);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, mustChangePassword, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, mustChangePassword, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

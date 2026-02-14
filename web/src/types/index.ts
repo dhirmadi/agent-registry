@@ -15,6 +15,7 @@ export interface User {
   role: 'admin' | 'editor' | 'viewer';
   auth_method: 'password' | 'google' | 'both';
   is_active: boolean;
+  must_change_password?: boolean;
   last_login_at: string | null;
 }
 

@@ -16,6 +16,7 @@ import {
   HelperTextItem,
 } from '@patternfly/react-core';
 import { api } from '../api/client';
+import { useAuth } from './AuthContext';
 
 const PASSWORD_RULES = [
   { test: (p: string) => p.length >= 12, label: 'At least 12 characters' },
@@ -31,6 +32,7 @@ function validatePassword(password: string): string[] {
 
 export function ChangePasswordPage() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -60,6 +62,9 @@ export function ChangePasswordPage() {
         current_password: currentPassword,
         new_password: newPassword,
       });
+      // Refresh auth context so mustChangePassword is cleared before navigating.
+      // The session is preserved server-side (only other sessions are invalidated).
+      await refreshUser();
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');
