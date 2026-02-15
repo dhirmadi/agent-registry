@@ -15,6 +15,7 @@ import (
 
 	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
 	"github.com/agent-smit/agentic-registry/internal/auth"
+	"github.com/agent-smit/agentic-registry/internal/notify"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
@@ -1200,5 +1201,178 @@ func TestAgentsHandler_Update_PreservesCreatedBy(t *testing.T) {
 	agent := agentStore.agents["test_agent"]
 	if agent.CreatedBy != originalCreator {
 		t.Fatalf("expected created_by to remain %q, got %q", originalCreator, agent.CreatedBy)
+	}
+}
+
+// --- A2A Publisher trigger tests ---
+
+type mockA2ACardProvider struct {
+	card map[string]interface{}
+	err  error
+}
+
+func (m *mockA2ACardProvider) GetAgentCard(_ context.Context, agentID string) (map[string]interface{}, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.card, nil
+}
+
+func TestAgentsHandler_Create_TriggersA2APublish(t *testing.T) {
+	publishReceived := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		publishReceived <- r.Method + " " + r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cardProvider := &mockA2ACardProvider{
+		card: map[string]interface{}{"name": "Test Agent"},
+	}
+	publisher := notify.NewA2APublisher(srv.URL, "https://example.com", cardProvider)
+
+	agentStore := newMockAgentStore()
+	audit := &mockAuditStoreForAPI{}
+	h := NewAgentsHandler(agentStore, audit, nil)
+	h.SetA2APublisher(publisher)
+
+	body := map[string]interface{}{
+		"id":   "pub_test",
+		"name": "Publisher Test Agent",
+	}
+	req := agentRequest(http.MethodPost, "/api/v1/agents", body, "editor")
+	w := httptest.NewRecorder()
+	h.Create(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d; body: %s", w.Code, w.Body.String())
+	}
+
+	select {
+	case received := <-publishReceived:
+		expected := "PUT /agents/pub_test"
+		if received != expected {
+			t.Errorf("expected %q, got %q", expected, received)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for A2A publish after create")
+	}
+}
+
+func TestAgentsHandler_Delete_TriggersA2APublish(t *testing.T) {
+	publishReceived := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		publishReceived <- r.Method + " " + r.URL.Path
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	cardProvider := &mockA2ACardProvider{}
+	publisher := notify.NewA2APublisher(srv.URL, "https://example.com", cardProvider)
+
+	agentStore := newMockAgentStore()
+	audit := &mockAuditStoreForAPI{}
+	h := NewAgentsHandler(agentStore, audit, nil)
+	h.SetA2APublisher(publisher)
+
+	agentStore.agents["del_test"] = &store.Agent{
+		ID:       "del_test",
+		Name:     "Delete Test Agent",
+		IsActive: true,
+	}
+
+	req := agentRequest(http.MethodDelete, "/api/v1/agents/del_test", nil, "editor")
+	req = withChiParam(req, "agentId", "del_test")
+	w := httptest.NewRecorder()
+	h.Delete(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d; body: %s", w.Code, w.Body.String())
+	}
+
+	select {
+	case received := <-publishReceived:
+		expected := "DELETE /agents/del_test"
+		if received != expected {
+			t.Errorf("expected %q, got %q", expected, received)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for A2A publish after delete")
+	}
+}
+
+func TestAgentsHandler_Update_TriggersA2APublish(t *testing.T) {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	publishReceived := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		publishReceived <- r.Method + " " + r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cardProvider := &mockA2ACardProvider{
+		card: map[string]interface{}{"name": "Updated Agent"},
+	}
+	publisher := notify.NewA2APublisher(srv.URL, "https://example.com", cardProvider)
+
+	agentStore := newMockAgentStore()
+	audit := &mockAuditStoreForAPI{}
+	h := NewAgentsHandler(agentStore, audit, nil)
+	h.SetA2APublisher(publisher)
+
+	agentStore.agents["upd_test"] = &store.Agent{
+		ID:             "upd_test",
+		Name:           "Original Agent",
+		Tools:          json.RawMessage(`[]`),
+		TrustOverrides: json.RawMessage(`{}`),
+		ExamplePrompts: json.RawMessage(`[]`),
+		IsActive:       true,
+		Version:        1,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	body := map[string]interface{}{
+		"name":          "Updated Agent",
+		"description":   "Updated",
+		"system_prompt": "Updated prompt",
+	}
+	req := agentRequest(http.MethodPut, "/api/v1/agents/upd_test", body, "editor")
+	req.Header.Set("If-Match", now.Format(time.RFC3339Nano))
+	req = withChiParam(req, "agentId", "upd_test")
+	w := httptest.NewRecorder()
+	h.Update(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", w.Code, w.Body.String())
+	}
+
+	select {
+	case received := <-publishReceived:
+		expected := "PUT /agents/upd_test"
+		if received != expected {
+			t.Errorf("expected %q, got %q", expected, received)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for A2A publish after update")
+	}
+}
+
+func TestAgentsHandler_NilPublisher_NoError(t *testing.T) {
+	agentStore := newMockAgentStore()
+	audit := &mockAuditStoreForAPI{}
+	h := NewAgentsHandler(agentStore, audit, nil)
+	// No publisher set -- should not panic
+
+	body := map[string]interface{}{
+		"id":   "no_pub_test",
+		"name": "No Publisher Test",
+	}
+	req := agentRequest(http.MethodPost, "/api/v1/agents", body, "editor")
+	w := httptest.NewRecorder()
+	h.Create(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d; body: %s", w.Code, w.Body.String())
 	}
 }

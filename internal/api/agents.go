@@ -34,9 +34,10 @@ type AgentStoreForAPI interface {
 
 // AgentsHandler provides HTTP handlers for agent management endpoints.
 type AgentsHandler struct {
-	agents     AgentStoreForAPI
-	audit      AuditStoreForAPI
-	dispatcher notify.EventDispatcher
+	agents       AgentStoreForAPI
+	audit        AuditStoreForAPI
+	dispatcher   notify.EventDispatcher
+	a2aPublisher *notify.A2APublisher
 }
 
 // NewAgentsHandler creates a new AgentsHandler.
@@ -46,6 +47,11 @@ func NewAgentsHandler(agents AgentStoreForAPI, audit AuditStoreForAPI, dispatche
 		audit:      audit,
 		dispatcher: dispatcher,
 	}
+}
+
+// SetA2APublisher configures the A2A registry publisher for this handler.
+func (h *AgentsHandler) SetA2APublisher(pub *notify.A2APublisher) {
+	h.a2aPublisher = pub
 }
 
 // agentTool is used to parse the tools JSONB for computing derived fields.
@@ -232,6 +238,7 @@ func (h *AgentsHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	h.auditLog(r, "agent_create", "agent", agent.ID)
 	h.dispatchEvent(r, "agent.created", "agent", agent.ID)
+	h.publishA2A(agent.ID, "upsert")
 
 	RespondJSON(w, r, http.StatusCreated, toAgentAPIResponse(agent, true))
 }
@@ -365,6 +372,7 @@ func (h *AgentsHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	h.auditLog(r, "agent_update", "agent", agentID)
 	h.dispatchEvent(r, "agent.updated", "agent", agentID)
+	h.publishA2A(agentID, "upsert")
 
 	RespondJSON(w, r, http.StatusOK, toAgentAPIResponse(existing, true))
 }
@@ -409,6 +417,7 @@ func (h *AgentsHandler) PatchAgent(w http.ResponseWriter, r *http.Request) {
 
 	h.auditLog(r, "agent_update", "agent", agentID)
 	h.dispatchEvent(r, "agent.updated", "agent", agentID)
+	h.publishA2A(agentID, "upsert")
 
 	RespondJSON(w, r, http.StatusOK, toAgentAPIResponse(agent, true))
 }
@@ -428,6 +437,7 @@ func (h *AgentsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	h.auditLog(r, "agent_delete", "agent", agentID)
 	h.dispatchEvent(r, "agent.deleted", "agent", agentID)
+	h.publishA2A(agentID, "delete")
 
 	RespondNoContent(w)
 }
@@ -512,6 +522,7 @@ func (h *AgentsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 
 	h.auditLog(r, "agent_rollback", "agent", agentID)
 	h.dispatchEvent(r, "agent.rolled_back", "agent", agentID)
+	h.publishA2A(agentID, "upsert")
 
 	RespondJSON(w, r, http.StatusOK, toAgentAPIResponse(agent, true))
 }
@@ -545,6 +556,17 @@ func (h *AgentsHandler) dispatchEvent(r *http.Request, eventType, resourceType, 
 		Timestamp:    time.Now().UTC().Format(time.RFC3339Nano),
 		Actor:        callerID.String(),
 	})
+}
+
+func (h *AgentsHandler) publishA2A(agentID, action string) {
+	if h.a2aPublisher == nil {
+		return
+	}
+	go func() {
+		if err := h.a2aPublisher.Publish(context.Background(), agentID, action); err != nil {
+			log.Printf("a2a publish failed for %s %s: %v", action, agentID, err)
+		}
+	}()
 }
 
 func isConflictError(err error) bool {

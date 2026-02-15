@@ -277,3 +277,36 @@ func TestLoad_MCPEnabled(t *testing.T) {
 		})
 	}
 }
+
+func TestLoad_A2ARegistryURL_Default(t *testing.T) {
+	env := map[string]string{
+		"DATABASE_URL":              "postgres://localhost/test",
+		"SESSION_SECRET":            "abc123",
+		"CREDENTIAL_ENCRYPTION_KEY": "12345678901234567890123456789012",
+	}
+
+	cfg, err := LoadFrom(env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.A2ARegistryURL != "" {
+		t.Errorf("A2ARegistryURL should default to empty, got %q", cfg.A2ARegistryURL)
+	}
+}
+
+func TestLoad_A2ARegistryURL_Set(t *testing.T) {
+	env := map[string]string{
+		"DATABASE_URL":              "postgres://localhost/test",
+		"SESSION_SECRET":            "abc123",
+		"CREDENTIAL_ENCRYPTION_KEY": "12345678901234567890123456789012",
+		"A2A_REGISTRY_URL":          "https://a2a-registry.example.com",
+	}
+
+	cfg, err := LoadFrom(env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.A2ARegistryURL != "https://a2a-registry.example.com" {
+		t.Errorf("A2ARegistryURL = %q, want %q", cfg.A2ARegistryURL, "https://a2a-registry.example.com")
+	}
+}

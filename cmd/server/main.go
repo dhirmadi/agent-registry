@@ -208,6 +208,19 @@ func run() error {
 	discoveryHandler := api.NewDiscoveryHandler(agentStore, mcpServerStore, trustDefaultStore, modelConfigStore, modelEndpointStore)
 	a2aHandler := api.NewA2AHandler(agentStore, cfg.ExternalURL)
 
+	// Create A2A publisher (if configured)
+	if cfg.A2ARegistryURL != "" {
+		validatedURL, err := notify.ValidateA2ARegistryURL(cfg.A2ARegistryURL)
+		if err != nil {
+			log.Printf("warning: invalid A2A_REGISTRY_URL, publisher disabled: %v", err)
+		} else {
+			cardProvider := api.NewA2ACardProvider(agentStore, cfg.ExternalURL)
+			a2aPublisher := notify.NewA2APublisher(validatedURL, cfg.ExternalURL, cardProvider)
+			agentsHandler.SetA2APublisher(a2aPublisher)
+			log.Printf("A2A registry publisher enabled: %s", validatedURL)
+		}
+	}
+
 	// Create MCP handler (if enabled)
 	var mcpHandler *api.MCPHandler
 	if cfg.MCPEnabled {
