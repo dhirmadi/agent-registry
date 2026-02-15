@@ -577,6 +577,16 @@ func TestGateway_ListTools_ReturnsEnabledServers(t *testing.T) {
 	if len(serversList) != 2 {
 		t.Errorf("expected 2 enabled servers, got %d", len(serversList))
 	}
+	// Verify endpoint is NOT exposed (security: information disclosure)
+	for i, srv := range serversList {
+		srvMap := srv.(map[string]interface{})
+		if _, hasEndpoint := srvMap["endpoint"]; hasEndpoint {
+			t.Errorf("server[%d] should not expose endpoint field (information disclosure)", i)
+		}
+		if _, hasLabel := srvMap["label"]; !hasLabel {
+			t.Errorf("server[%d] missing label field", i)
+		}
+	}
 }
 
 func TestGateway_ListTools_EmptyList(t *testing.T) {

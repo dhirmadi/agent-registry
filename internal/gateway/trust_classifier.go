@@ -81,7 +81,7 @@ func (tc *TrustClassifier) Classify(ctx context.Context, input ClassifyInput) (T
 		}
 		for pattern, tier := range overrides {
 			if matchGlob(pattern, input.ToolName) {
-				return TrustTier(tier), nil
+				return normalizeTrustTier(tier), nil
 			}
 		}
 	}
@@ -94,7 +94,7 @@ func (tc *TrustClassifier) Classify(ctx context.Context, input ClassifyInput) (T
 		}
 		for _, rule := range rules {
 			if matchGlob(rule.ToolPattern, input.ToolName) {
-				return TrustTier(rule.Tier), nil
+				return normalizeTrustTier(rule.Tier), nil
 			}
 		}
 	}
@@ -107,13 +107,25 @@ func (tc *TrustClassifier) Classify(ctx context.Context, input ClassifyInput) (T
 		}
 		for _, def := range defaults {
 			if matchGlob(def.ToolPattern, input.ToolName) {
-				return TrustTier(def.Tier), nil
+				return normalizeTrustTier(def.Tier), nil
 			}
 		}
 	}
 
 	// Level 4: Default to auto
 	return TrustAuto, nil
+}
+
+// normalizeTrustTier validates and normalizes a trust tier string.
+// Returns TrustBlock for invalid/unknown values (safest default).
+func normalizeTrustTier(tier string) TrustTier {
+	switch TrustTier(tier) {
+	case TrustAuto, TrustReview, TrustBlock:
+		return TrustTier(tier)
+	default:
+		// Invalid tier values default to block for safety
+		return TrustBlock
+	}
 }
 
 // matchGlob matches a glob pattern against a name using path.Match.

@@ -169,7 +169,8 @@ func (h *MCPGatewayHandler) ListTools(w http.ResponseWriter, r *http.Request) {
 	var enabled []map[string]interface{}
 	for _, s := range servers {
 		if s.IsEnabled {
-			enabled = append(enabled, map[string]interface{}{"label": s.Label, "endpoint": s.Endpoint})
+			// Only return label - endpoint is internal and not needed by callers
+			enabled = append(enabled, map[string]interface{}{"label": s.Label})
 		}
 	}
 	RespondJSON(w, r, http.StatusOK, map[string]interface{}{"servers": enabled})

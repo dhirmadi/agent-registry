@@ -424,3 +424,29 @@ func TestMatchGlob(t *testing.T) {
 func ptrUUID(id uuid.UUID) *uuid.UUID {
 	return &id
 }
+
+// TestNormalizeTrustTier verifies invalid tier values default to block
+func TestNormalizeTrustTier(t *testing.T) {
+	tests := []struct {
+		input string
+		want  TrustTier
+	}{
+		{"auto", TrustAuto},
+		{"review", TrustReview},
+		{"block", TrustBlock},
+		{"invalid", TrustBlock},      // Invalid defaults to block
+		{"bypass", TrustBlock},       // Bypass attempt blocked
+		{"allow", TrustBlock},        // Unknown value blocked
+		{"", TrustBlock},             // Empty string blocked
+		{"AUTO", TrustBlock},         // Case-sensitive
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := normalizeTrustTier(tt.input)
+			if got != tt.want {
+				t.Errorf("normalizeTrustTier(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
