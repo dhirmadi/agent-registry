@@ -8,7 +8,7 @@
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Go | 1.24+ | Backend |
+| Go | 1.25+ | Backend |
 | Node.js | 20+ | Frontend build and tests |
 | PostgreSQL | 16+ | Database |
 | Docker / Podman | Latest | Container builds |
@@ -207,22 +207,22 @@ The GitHub Actions CI runs on every push and PR to `main`:
 
 ## Test Coverage
 
-### Backend (28 test files)
+### Backend (31 test files)
 
 | Area | Test Files |
 |------|-----------|
-| API handlers | `agents_test.go`, `prompts_test.go`, `mcp_servers_test.go`, `trust_rules_test.go`, `trust_defaults_test.go`, `model_config_test.go`, `webhooks_test.go`, `users_test.go`, `api_keys_test.go`, `discovery_test.go`, `audit_completeness_test.go` |
+| API handlers | `agents_test.go`, `prompts_test.go`, `mcp_servers_test.go`, `trust_rules_test.go`, `trust_defaults_test.go`, `model_config_test.go`, `model_endpoints_test.go`, `model_endpoints_security_test.go`, `model_endpoints_stress_test.go`, `webhooks_test.go`, `users_test.go`, `api_keys_test.go`, `discovery_test.go`, `audit_completeness_test.go` |
 | Auth | `handler_test.go`, `session_test.go`, `password_test.go`, `csrf_test.go`, `oauth_test.go`, `apikey_test.go`, `crypto_test.go` |
 | Middleware | `middleware_test.go`, `health_test.go`, `respond_test.go` |
 | Integration | `integration_test.go`, `security_test.go` |
 | Infrastructure | `config_test.go`, `dispatcher_test.go`, `limiter_test.go`, `errors_test.go`, `agents_test.go` (seed) |
 
-### Frontend (19 test files)
+### Frontend (21 test files)
 
 | Area | Test Files |
 |------|-----------|
 | Auth | `AuthContext.test.tsx`, `LoginPage.test.tsx` |
-| Pages | `DashboardPage.test.tsx`, `AgentsPage.test.tsx`, `AgentDetailPage.test.tsx`, `PromptsPage.test.tsx`, `MCPServersPage.test.tsx`, `TrustPage.test.tsx`, `ModelConfigPage.test.tsx`, `WebhooksPage.test.tsx`, `APIKeysPage.test.tsx`, `UsersPage.test.tsx`, `AuditLogPage.test.tsx`, `MyAccountPage.test.tsx` |
+| Pages | `DashboardPage.test.tsx`, `AgentsPage.test.tsx`, `AgentDetailPage.test.tsx`, `PromptsPage.test.tsx`, `MCPServersPage.test.tsx`, `TrustPage.test.tsx`, `ModelConfigPage.test.tsx`, `ModelEndpointsPage.test.tsx`, `ModelEndpointDetailPage.test.tsx`, `WebhooksPage.test.tsx`, `APIKeysPage.test.tsx`, `UsersPage.test.tsx`, `AuditLogPage.test.tsx`, `MyAccountPage.test.tsx` |
 | Components | `AppLayout.test.tsx`, `ErrorBoundary.test.tsx`, `ConfirmDialog.test.tsx`, `DiffViewer.test.tsx` |
 | E2E | `smoke.test.tsx` |
 

@@ -17,17 +17,18 @@
 
 ## Roadmap
 
-| Document | Description |
-|----------|-------------|
-| [Roadmap Overview](roadmap/README.md) | Phases 6–8: protocol interoperability, platform capabilities, ecosystem |
-| [001 — MCP Server Facade](roadmap/001-mcp-server-facade.md) | Expose the registry as a native MCP server |
-| [002 — A2A Agent Card](roadmap/002-a2a-agent-card.md) | Publish Agent Cards for A2A ecosystem discovery |
-| [003 — MCP Gateway Mode](roadmap/003-mcp-gateway-mode.md) | Runtime proxy with trust enforcement and audit |
-| [004 — Multi-Tenancy](roadmap/004-multi-tenancy.md) | Tenant isolation and cross-instance federation |
-| [005 — Semantic Discovery](roadmap/005-semantic-discovery.md) | Natural language search over agent capabilities |
-| [006 — Real-Time Streaming](roadmap/006-realtime-streaming.md) | SSE for config changes and health status |
-| [007 — Advanced Observability](roadmap/007-advanced-observability.md) | Usage analytics, cost attribution, and dashboards |
-| [008 — Package Ecosystem](roadmap/008-package-ecosystem.md) | Portable `.agentpkg.json` format with CLI |
+| Document | Description | Status |
+|----------|-------------|--------|
+| [Roadmap Overview](roadmap/README.md) | Phases 6–8: protocol interoperability, platform capabilities, ecosystem | |
+| [001 — MCP Server Facade](roadmap/001-mcp-server-facade.md) | Expose the registry as a native MCP server | Planned |
+| [002 — A2A Agent Card](roadmap/002-a2a-agent-card.md) | Publish Agent Cards for A2A ecosystem discovery | Planned |
+| [003 — MCP Gateway Mode](roadmap/003-mcp-gateway-mode.md) | Runtime proxy with trust enforcement and audit | Planned |
+| [004 — Multi-Tenancy](roadmap/004-multi-tenancy.md) | Tenant isolation and cross-instance federation | Planned |
+| [005 — Semantic Discovery](roadmap/005-semantic-discovery.md) | Natural language search over agent capabilities | Planned |
+| [006 — Real-Time Streaming](roadmap/006-realtime-streaming.md) | SSE for config changes and health status | Planned |
+| [007 — Advanced Observability](roadmap/007-advanced-observability.md) | Usage analytics, cost attribution, and dashboards | Planned |
+| [008 — Package Ecosystem](roadmap/008-package-ecosystem.md) | Portable `.agentpkg.json` format with CLI | Planned |
+| [009 — Model Endpoints](roadmap/009-model-endpoints.md) | Versioned model provider endpoint registry with rollback | **Shipped** |
 
 ## Archive
 

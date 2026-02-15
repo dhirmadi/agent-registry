@@ -80,7 +80,7 @@ Last reviewed: 2026-02-14
 - [x] System prompt max 100KB -- `internal/api/agents.go`: Create and Update check `len(req.SystemPrompt) > 100*1024`; also in `prompts.go`
 - [x] JSON body max 1MB -- `internal/api/middleware.go`: `MaxBodySize(1 << 20)` middleware on `/api/v1/*`
 - [x] Webhook URL format + max 2000 chars -- `internal/api/webhooks.go`: `url.Parse()` + length check
-- [x] MCP server URL max 2000 chars -- `internal/api/mcp_servers.go`: `validateEndpointURL()` length check
+- [x] MCP server URL max 2000 chars -- `internal/api/mcp_servers.go`: endpoint length validation in handler
 - [x] SQL injection prevention -- all `internal/store/` files use pgx parameterized queries (`$1`, `$2`, etc.)
 
 ## Secrets Protection

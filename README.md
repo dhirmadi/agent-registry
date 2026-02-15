@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.24-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go 1.24" />
+  <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go 1.25" />
   <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL 16" />
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 18" />
   <img src="https://img.shields.io/badge/PatternFly-5-004080?style=flat-square&logo=redhat&logoColor=white" alt="PatternFly 5" />
@@ -12,7 +12,7 @@
 <p align="center">
   <strong>The single source of truth for AI agent configuration.</strong>
   <br />
-  Manage agents, prompts, MCP servers, trust rules, model parameters, and webhooks — all from one service with a built-in admin GUI.
+  Manage agents, prompts, MCP servers, trust rules, model endpoints, and webhooks — all from one service with a built-in admin GUI.
   <br />
   <br />
   <a href="docs/architecture.md">Architecture</a> &nbsp;&middot;&nbsp;
@@ -39,7 +39,8 @@ AI agent platforms grow fast. Suddenly you have agent definitions, system prompt
 | **MCP Servers** | Endpoint configuration with AES-256-GCM encrypted credentials |
 | **Trust Rules** | Workspace-scoped tool trust classification (trusted / cautious / untrusted) |
 | **Trust Defaults** | System-wide default trust patterns with priority ordering |
-| **Model Config** | LLM parameters (model, temperature, token limits) with global/workspace inheritance |
+| **Model Endpoints** | Versioned, addressable model provider endpoints with per-version config, activation, and rollback |
+| **Model Config** *(legacy)* | Global LLM parameters — superseded by Model Endpoints |
 | **Webhooks** | Push notifications with HMAC-SHA256 signing and automatic retry |
 | **Users & API Keys** | Role-based access with three auth methods |
 
@@ -130,6 +131,16 @@ Open `http://localhost:8090` in your browser. Login with `admin` / `admin` and s
 - **Rate limiting** on login, OAuth, API mutations, reads, and discovery
 - **Append-only audit log** — every mutation recorded with actor and IP
 
+### Model Endpoint Management
+
+- **Versioned model endpoints** — each endpoint is a real, addressable registry artifact
+- **Fixed or flexible models** — lock to a specific model, or allow consumers to choose from an approved list
+- **Per-version configuration** — temperature, max tokens, context window, and more, all versioned
+- **Activation and rollback** — switch between versions without touching application code
+- **Workspace scoping** — different endpoints for different teams
+- **Provider-agnostic** — OpenAI, Azure, Anthropic, Ollama, or custom providers
+- **Slug-based addressing** — human-readable identifiers like `openai-gpt4o-prod`
+
 ### Built-In Admin GUI
 
 A full React + PatternFly 5 admin interface embedded in the Go binary:
@@ -139,7 +150,8 @@ A full React + PatternFly 5 admin interface embedded in the Go binary:
 - **Prompt editor** — version browser with diff view
 - **MCP server configuration** — register, edit, monitor
 - **Trust management** — defaults and workspace-scoped rules
-- **Model configuration** — global and workspace parameters
+- **Model endpoint management** — create, version, activate, rollback provider endpoints
+- **Model configuration** *(legacy)* — global and workspace parameters
 - **Webhook management** — create subscriptions, view events
 - **User administration** — create, edit roles, reset auth
 - **API key management** — create, revoke, scope control
@@ -160,7 +172,7 @@ GET /api/v1/discovery
 Authorization: Bearer rk_live_...
 ```
 
-Returns agents, MCP servers, trust defaults, and model config in a single response. Designed for consumers (like a BFF) to hydrate their cache on startup.
+Returns agents, MCP servers, trust defaults, model config, and model endpoints in a single response. Designed for consumers (like a BFF) to hydrate their cache on startup.
 
 ---
 
@@ -168,7 +180,7 @@ Returns agents, MCP servers, trust defaults, and model config in a single respon
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| Language | **Go 1.24** | Performance, single binary, strong stdlib |
+| Language | **Go 1.25** | Performance, single binary, strong stdlib |
 | Router | **chi/v5** | Lightweight, stdlib-compatible, composable middleware |
 | Database | **PostgreSQL 16** | JSONB for flexible fields, proven reliability |
 | DB Driver | **pgx/v5** | Native Go, connection pooling, prepared statements |
@@ -201,6 +213,11 @@ All endpoints return a consistent envelope: `{ success, data, error, meta }`.
 | `POST` | `/api/v1/agents/{id}/prompts/{pid}/activate` | Activate prompt |
 | `GET` | `/api/v1/mcp-servers` | List MCP servers |
 | `POST` | `/api/v1/mcp-servers` | Register MCP server |
+| `GET` | `/api/v1/model-endpoints` | List model endpoints |
+| `POST` | `/api/v1/model-endpoints` | Create model endpoint |
+| `PUT` | `/api/v1/model-endpoints/{slug}` | Update model endpoint |
+| `POST` | `/api/v1/model-endpoints/{slug}/versions` | Create new config version |
+| `POST` | `/api/v1/model-endpoints/{slug}/versions/{v}/activate` | Activate a version |
 | `GET` | `/api/v1/discovery` | Composite discovery |
 | `GET` | `/api/v1/webhooks` | List webhooks |
 | `POST` | `/api/v1/webhooks` | Subscribe to events |
@@ -235,10 +252,10 @@ All configuration via environment variables. No config files.
 ## Testing
 
 ```bash
-# Backend — 28 test files, race detection
+# Backend — 31 test files, race detection
 go test -race -count=1 ./...
 
-# Frontend — 19 test files
+# Frontend — 21 test files
 cd web && npm test -- --run
 ```
 
@@ -260,6 +277,7 @@ internal/config/             Environment variable loading
 internal/errors/             APIError type + constructors
 internal/ratelimit/          Sliding-window rate limiter
 internal/seed/               First-boot agent seeder (16 product agents)
+internal/telemetry/          OpenTelemetry initialization
 web/src/                     React + PatternFly 5 admin GUI
 migrations/                  SQL migrations (embedded in binary)
 deployment/                  Docker Compose + env examples
@@ -274,6 +292,7 @@ The core product is shipped. The roadmap focuses on protocol interoperability an
 
 | Phase | Focus | Status |
 |-------|-------|--------|
+| **Phase 5.5** | Model Endpoints — versioned, addressable model provider registry | **Shipped** |
 | **Phase 6** | MCP Server Facade, A2A Agent Cards, MCP Gateway Mode | Planned |
 | **Phase 7** | Multi-Tenancy, Semantic Discovery, Real-Time Streaming, Observability | Planned |
 | **Phase 8** | Package Ecosystem (`.agentpkg.json` format) | Planned |

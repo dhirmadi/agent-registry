@@ -239,7 +239,8 @@ All non-GET requests authenticated via session cookies require a CSRF token.
 | MCP Servers | — | — | Full CRUD |
 | Trust Rules | — | Full CRUD | Full CRUD |
 | Trust Defaults | — | — | Full CRUD |
-| Model Config | — | — | Full CRUD |
+| Model Endpoints | Read | Full CRUD | Full CRUD |
+| Model Config *(legacy)* | — | — | Full CRUD |
 | Webhooks | — | — | Full CRUD |
 | Users | — | — | Full CRUD |
 | API Keys | Own keys | Own keys | All keys |

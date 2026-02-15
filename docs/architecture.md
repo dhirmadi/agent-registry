@@ -69,7 +69,8 @@ HTTP handlers parse requests, validate input, enforce RBAC, call the store, reco
 | `mcp_servers.go` | MCP server configuration CRUD |
 | `trust_rules.go` | Workspace-scoped trust rule CRUD |
 | `trust_defaults.go` | System-wide trust classification defaults |
-| `model_config.go` | Global and workspace model parameters |
+| `model_config.go` | Global and workspace model parameters (legacy) |
+| `model_endpoints.go` | Model endpoint CRUD, versioning, activation, rollback |
 | `webhooks.go` | Webhook subscription management |
 | `users.go` | User administration |
 | `api_keys.go` | API key lifecycle |
@@ -104,7 +105,9 @@ Migrations are embedded in the binary via `//go:embed` and run automatically on 
 | `mcp_servers` | MCP server configurations (credentials AES-256-GCM encrypted) |
 | `trust_rules` | Workspace-scoped tool trust overrides |
 | `trust_defaults` | System-wide trust classification patterns |
-| `model_config` | LLM parameters (global and workspace-scoped) |
+| `model_config` | LLM parameters — global and workspace-scoped (legacy) |
+| `model_endpoints` | Versioned model provider endpoints with slug-based addressing |
+| `model_endpoint_versions` | Immutable config snapshots per model endpoint (activation/rollback) |
 | `webhook_subscriptions` | Webhook consumer registrations |
 
 ---
@@ -224,7 +227,7 @@ agentic-registry/
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| Language | Go 1.24 | Performance, single binary, strong stdlib |
+| Language | Go 1.25 | Performance, single binary, strong stdlib |
 | Router | chi/v5 | Lightweight, stdlib-compatible, middleware chains |
 | Database | PostgreSQL 16 | JSONB for flexible fields, proven reliability |
 | DB driver | pgx/v5 | Native Go, connection pooling, prepared statements |

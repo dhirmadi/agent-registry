@@ -15,7 +15,7 @@ When the user says "run QA" or "test this feature":
 5. **Self-Correction**: If tests fail, analyze the error logs and provide a `diff-fix` to either the code (if it's a bug) or the test (if it's a change in spec).
 
 ## Guidelines
-- Follow Go 1.24 standards (use `t.Parallel()` where safe).
+- Follow Go 1.25 standards (use `t.Parallel()` where safe).
 - Use stdlib `testing` package — no testify or external test frameworks.
 - Frontend tests use Vitest + @testing-library/react — no Playwright.
 - Ensure every mutation test checks the **Audit Log** for correctly recorded metadata.

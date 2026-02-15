@@ -8,7 +8,7 @@ When the user says "build the registry" or "start phase [number]", follow this p
 1. **Analysis Mode (Adaptive Thinking: High)**: 
    - Internalize the `agentic_registry_spec.md`.
    - Audit the current directory to ensure it is clean.
-   - Initialize the `CLAUDE.md` file for the new repo with the tech stack: Go 1.24, React/PatternFly 5, PostgreSQL 16.
+   - Initialize the `CLAUDE.md` file for the new repo with the tech stack: Go 1.25, React/PatternFly 5, PostgreSQL 16.
 
 2. **Swarm Initialization**: 
    - Spawn a **Swarm** of 3 agents:
@@ -28,7 +28,7 @@ When the user says "build the registry" or "start phase [number]", follow this p
    - Ensure `CREDENTIAL_ENCRYPTION_KEY` handling is never logged.
 
 ## Constraints
-- **Strictly Go 1.24** using `chi/v5` and `pgx/v5`.
+- **Strictly Go 1.25** using `chi/v5` and `pgx/v5`.
 - **No GORM or heavy frameworks**. Use raw SQL migrations.
 - **Strictly PatternFly 5** for the UI—no Tailwind or custom CSS unless necessary.
 - **Embedded FS**: The UI must be served via Go's `embed` package.

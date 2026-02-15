@@ -18,7 +18,8 @@ The Agentic Registry is the **most feature-complete self-hosted agent configurat
 | Versioned prompts with activation, rollback, and diff view | Shipped |
 | MCP server config with AES-256-GCM encrypted credentials | Shipped |
 | Trust classification chain (agent overrides, workspace rules, system defaults) | Shipped |
-| Global and workspace-scoped model configuration with inheritance | Shipped (superseded by [009](009-model-endpoints.md)) |
+| Global and workspace-scoped model configuration with inheritance | Shipped (legacy — superseded by [009](009-model-endpoints.md)) |
+| Versioned model endpoint registry with activation and rollback ([009](009-model-endpoints.md)) | **Shipped** |
 | Three auth methods (password, Google OAuth 2.0 PKCE, API keys) | Shipped |
 | OWASP-grade security (CSRF, bcrypt, rate limiting, security headers) | Shipped |
 | Comprehensive audit logging for every mutation | Shipped |
@@ -50,7 +51,7 @@ The AI agent ecosystem is converging on two interoperability protocols — **MCP
 | [005](005-semantic-discovery.md) | **Semantic Discovery** — Natural language search over agent capabilities using pgvector embeddings | Medium | 2–3 weeks | Planned |
 | [006](006-realtime-streaming.md) | **Real-Time Streaming** — SSE for config changes, health status, and progressive discovery | Medium | 2–3 weeks | Planned |
 | [007](007-advanced-observability.md) | **Advanced Observability** — Per-tool usage analytics, cost attribution, health dashboards, alerts | Medium | 2–3 weeks | Planned |
-| [009](009-model-endpoints.md) | **Model Endpoints** — Replace global model config with versioned, addressable model endpoint assets (fixed or multi-model, with rollback) | High | 2–3 weeks | Planned |
+| [009](009-model-endpoints.md) | **Model Endpoints** — Replace global model config with versioned, addressable model endpoint assets (fixed or multi-model, with rollback) | High | 2–3 weeks | **Shipped** |
 
 ## Phase 8 — Ecosystem
 

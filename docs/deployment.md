@@ -266,5 +266,6 @@ On first startup with an empty database:
 3. Global model configuration is seeded (sensible defaults)
 4. Default admin account is created (`admin`/`admin`, must change password)
 5. 16 product agents are seeded (6 with full tool definitions, 10 placeholders)
+6. Default model endpoints are seeded if the Model Endpoints feature is active
 
 No manual setup required beyond providing the three required environment variables.

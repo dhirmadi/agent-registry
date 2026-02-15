@@ -3,7 +3,7 @@
 > **Priority:** High
 > **Phase:** 7.5 (Asset Maturity)
 > **Effort:** Medium (2–3 weeks)
-> **Status:** Planned
+> **Status:** Shipped
 
 ---
 

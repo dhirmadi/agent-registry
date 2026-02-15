@@ -13,7 +13,7 @@ You are a senior Go backend engineer implementing the Agentic Registry microserv
 
 - **Spec:** `docs/specification/agentic_registry_spec.md` — read the relevant section before implementing
 - **CLAUDE.md** — follow all rules, especially TDD, Conventional Commits, and dependency discipline
-- **Stack:** Go 1.24, chi/v5, pgx/v5, golang-migrate/v4, stdlib crypto
+- **Stack:** Go 1.25, chi/v5, pgx/v5, golang-migrate/v4, stdlib crypto
 - **No ORM.** Write explicit SQL in `internal/store/` files
 - **No extra frameworks.** No gin, echo, gorm, gorilla
 

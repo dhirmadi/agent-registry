@@ -417,7 +417,129 @@ Update a trust default. Requires `If-Match`.
 
 ---
 
-## Model Configuration
+## Model Endpoints
+
+Model endpoints are versioned, addressable registry artifacts that represent model provider endpoints with their full connection and configuration contract. Each endpoint can be fixed to a single model or allow consumers to choose from an approved list. Configuration is versioned — every change creates an immutable snapshot with activation and rollback semantics.
+
+### `GET /api/v1/model-endpoints`
+
+List all model endpoints. Supports pagination.
+
+**Query Parameters:** `limit`, `offset`
+
+**Required Role:** `viewer`, `editor`, or `admin`
+
+### `GET /api/v1/model-endpoints/{slug}`
+
+Get a single model endpoint by its human-readable slug, including the active version's configuration.
+
+**Required Role:** `viewer`, `editor`, or `admin`
+
+### `POST /api/v1/model-endpoints`
+
+Create a new model endpoint. The `slug` must be unique and URL-safe.
+
+**Request (fixed-model endpoint):**
+```json
+{
+  "slug": "openai-gpt4o-prod",
+  "name": "GPT-4o Production",
+  "provider": "openai",
+  "endpoint_url": "https://api.openai.com/v1",
+  "is_fixed_model": true,
+  "model_name": "gpt-4o-2024-08-06"
+}
+```
+
+**Request (multi-model endpoint):**
+```json
+{
+  "slug": "azure-east-flexible",
+  "name": "Azure East US (Flexible)",
+  "provider": "azure",
+  "endpoint_url": "https://myorg-east.openai.azure.com",
+  "is_fixed_model": false,
+  "model_name": "gpt-4o",
+  "allowed_models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+}
+```
+
+**Providers:** `openai`, `azure`, `anthropic`, `ollama`, `custom`
+
+**Required Role:** `editor` or `admin`
+
+### `PUT /api/v1/model-endpoints/{slug}`
+
+Update a model endpoint's metadata. Requires `If-Match`. Does not create a new version — use the version endpoints to change configuration.
+
+**Required Role:** `editor` or `admin`
+
+### `DELETE /api/v1/model-endpoints/{slug}`
+
+Delete a model endpoint and all its versions.
+
+**Required Role:** `admin`
+
+### `GET /api/v1/model-endpoints/{slug}/versions`
+
+List all configuration versions for an endpoint (newest first).
+
+**Required Role:** `viewer`, `editor`, or `admin`
+
+### `GET /api/v1/model-endpoints/{slug}/versions/{version}`
+
+Get a specific configuration version.
+
+**Required Role:** `viewer`, `editor`, or `admin`
+
+### `POST /api/v1/model-endpoints/{slug}/versions`
+
+Create a new configuration version. The version number is auto-incremented.
+
+**Request:**
+```json
+{
+  "config": {
+    "temperature": 0.3,
+    "max_tokens": 4096,
+    "max_output_tokens": 8192,
+    "context_window": 128000,
+    "top_p": 0.95,
+    "frequency_penalty": 0.0,
+    "presence_penalty": 0.0,
+    "history_token_budget": 8192,
+    "max_history_messages": 50,
+    "max_tool_rounds": 10
+  },
+  "change_note": "Lowered temperature for deterministic summarization"
+}
+```
+
+**Required Role:** `editor` or `admin`
+
+### `POST /api/v1/model-endpoints/{slug}/versions/{version}/activate`
+
+Activate a specific configuration version. Only one version is active per endpoint. The previously active version is deactivated atomically.
+
+**Required Role:** `editor` or `admin`
+
+### `GET /api/v1/workspaces/{workspaceId}/model-endpoints`
+
+List model endpoints scoped to a specific workspace.
+
+**Required Role:** `editor` or `admin`
+
+### `POST /api/v1/workspaces/{workspaceId}/model-endpoints`
+
+Create a workspace-scoped model endpoint.
+
+**Required Role:** `editor` or `admin`
+
+---
+
+## Model Configuration (Legacy)
+
+> **Deprecated.** Use [Model Endpoints](#model-endpoints) for new integrations. The model config endpoints are preserved as a compatibility shim during migration.
 
 Global and workspace-scoped LLM parameters. Workspace config inherits from global and overrides only the fields it sets.
 
@@ -526,6 +648,11 @@ X-Webhook-Event: agent.updated
 | `trust_rule.deleted` | Trust rule removed |
 | `trust_default.updated` | Trust default modified |
 | `model_config.updated` | Model config changed |
+| `model_endpoint.created` | Model endpoint registered |
+| `model_endpoint.updated` | Model endpoint modified |
+| `model_endpoint.deleted` | Model endpoint removed |
+| `model_endpoint_version.created` | New config version created |
+| `model_endpoint_version.activated` | Config version activated |
 | `webhook.created` | Webhook subscription added |
 | `user.created` | User account created |
 
@@ -546,7 +673,20 @@ Returns a composite payload containing all configuration needed to hydrate a con
     "agents": [...],
     "mcp_servers": [...],
     "trust_defaults": [...],
-    "model_config": { ... }
+    "model_config": { ... },
+    "model_endpoints": [
+      {
+        "slug": "openai-gpt4o-prod",
+        "name": "GPT-4o Production",
+        "provider": "openai",
+        "endpoint_url": "https://api.openai.com/v1",
+        "model_name": "gpt-4o-2024-08-06",
+        "is_fixed_model": true,
+        "is_active": true,
+        "active_version": 5,
+        "config": { "temperature": 0.3, "max_tokens": 4096 }
+      }
+    ]
   }
 }
 ```

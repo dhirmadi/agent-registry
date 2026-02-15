@@ -25,7 +25,7 @@ This microservice becomes the **single source of truth** for agent configuration
 
 | Layer | Technology |
 |-------|-----------|
-| Language | Go 1.24 |
+| Language | Go 1.25 |
 | Router | chi/v5 (no gin/echo/gorilla) |
 | Database | PostgreSQL 16 via pgx/v5 (no ORM) |
 | Migrations | golang-migrate/v4 with embedded SQL |
