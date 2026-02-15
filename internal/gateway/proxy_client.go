@@ -50,6 +50,9 @@ func NewProxyClient(cfg ProxyClientConfig) *ProxyClient {
 		client: &http.Client{
 			Timeout:   cfg.Timeout,
 			Transport: transport,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse // Do not follow redirects
+			},
 		},
 	}
 }

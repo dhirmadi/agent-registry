@@ -92,6 +92,7 @@ func NewRouter(cfg RouterConfig) chi.Router {
 	// MCP Gateway routes (opt-in via GATEWAY_MODE env var)
 	if cfg.MCPGateway != nil {
 		r.Route("/mcp/v1", func(r chi.Router) {
+			r.Use(MaxBodySize(1 << 20))
 			if cfg.AuthMW != nil {
 				r.Use(cfg.AuthMW)
 			}
