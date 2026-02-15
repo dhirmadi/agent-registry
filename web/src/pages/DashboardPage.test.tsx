@@ -54,6 +54,7 @@ const mockDiscovery: DiscoveryResponse = {
   ],
   trust_defaults: [],
   model_config: {},
+  model_endpoints: [],
   fetched_at: '2026-01-01T00:00:00Z',
 };
 

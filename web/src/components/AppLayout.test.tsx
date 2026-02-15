@@ -64,7 +64,8 @@ describe('AppLayout', () => {
     expect(screen.getByText('Prompts')).toBeInTheDocument();
     expect(screen.getByText('MCP Servers')).toBeInTheDocument();
     expect(screen.getByText('Trust Rules')).toBeInTheDocument();
-    expect(screen.getByText('Model Config')).toBeInTheDocument();
+    expect(screen.getByText('Model Endpoints')).toBeInTheDocument();
+    expect(screen.getByText('Model Config (Legacy)')).toBeInTheDocument();
     expect(screen.getByText('Webhooks')).toBeInTheDocument();
     expect(screen.getByText('API Keys')).toBeInTheDocument();
     expect(screen.getByText('Audit Log')).toBeInTheDocument();

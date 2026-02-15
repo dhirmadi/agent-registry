@@ -5,9 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"log"
-	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -52,58 +50,6 @@ var validAuthTypes = map[string]bool{
 	"none":   true,
 	"bearer": true,
 	"basic":  true,
-}
-
-// validateEndpointURL checks that an endpoint is a valid HTTP(S) URL pointing to a public host.
-func validateEndpointURL(endpoint string) error {
-	if len(endpoint) > 2000 {
-		return apierrors.Validation("endpoint must be at most 2000 characters")
-	}
-	u, err := url.Parse(endpoint)
-	if err != nil {
-		return apierrors.Validation("endpoint is not a valid URL")
-	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return apierrors.Validation("endpoint must use http or https scheme")
-	}
-	host := u.Hostname()
-	if host == "" {
-		return apierrors.Validation("endpoint must have a valid host")
-	}
-	if isPrivateHost(host) {
-		return apierrors.Validation("endpoint must not point to a private or internal address")
-	}
-	return nil
-}
-
-// isPrivateHost returns true if the host is a private/internal/loopback address.
-func isPrivateHost(host string) bool {
-	if host == "localhost" {
-		return true
-	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return false
-	}
-	privateRanges := []struct {
-		network string
-	}{
-		{"127.0.0.0/8"},
-		{"10.0.0.0/8"},
-		{"172.16.0.0/12"},
-		{"192.168.0.0/16"},
-		{"169.254.0.0/16"},
-		{"::1/128"},
-		{"fc00::/7"},
-		{"fe80::/10"},
-	}
-	for _, r := range privateRanges {
-		_, cidr, _ := net.ParseCIDR(r.network)
-		if cidr.Contains(ip) {
-			return true
-		}
-	}
-	return false
 }
 
 // circuitBreakerSchema is used to validate the circuit_breaker JSON field.
