@@ -37,7 +37,8 @@ type RouterConfig struct {
 	MCPServers    *MCPServersHandler
 	TrustRules    *TrustRulesHandler
 	TrustDefaults *TrustDefaultsHandler
-	ModelConfig   *ModelConfigHandler
+	ModelConfig    *ModelConfigHandler
+	ModelEndpoints *ModelEndpointsHandler
 	Webhooks      *WebhooksHandler
 	Discovery     *DiscoveryHandler
 	AuditLog      *AuditHandler
@@ -217,6 +218,30 @@ func NewRouter(cfg RouterConfig) chi.Router {
 			})
 		}
 
+		// Model Endpoints
+		if cfg.ModelEndpoints != nil {
+			r.Route("/model-endpoints", func(r chi.Router) {
+				// Read endpoints (viewer+)
+				r.Group(func(r chi.Router) {
+					r.Use(RequireRole("viewer", "editor", "admin"))
+					r.Get("/", cfg.ModelEndpoints.List)
+					r.Get("/{slug}", cfg.ModelEndpoints.Get)
+					r.Get("/{slug}/versions", cfg.ModelEndpoints.ListVersions)
+					r.Get("/{slug}/versions/{version}", cfg.ModelEndpoints.GetVersion)
+				})
+
+				// Write endpoints (editor+)
+				r.Group(func(r chi.Router) {
+					r.Use(RequireRole("editor", "admin"))
+					r.Post("/", cfg.ModelEndpoints.Create)
+					r.Put("/{slug}", cfg.ModelEndpoints.Update)
+					r.Delete("/{slug}", cfg.ModelEndpoints.Delete)
+					r.Post("/{slug}/versions", cfg.ModelEndpoints.CreateVersion)
+					r.Post("/{slug}/versions/{version}/activate", cfg.ModelEndpoints.ActivateVersion)
+				})
+			})
+		}
+
 		// Webhooks (admin only)
 		if cfg.Webhooks != nil {
 			r.Route("/webhooks", func(r chi.Router) {
@@ -269,6 +294,20 @@ func NewRouter(cfg RouterConfig) chi.Router {
 					r.Use(RequireRole("editor", "admin"))
 					r.Get("/", cfg.ModelConfig.GetWorkspace)
 					r.Put("/", cfg.ModelConfig.UpdateWorkspace)
+				})
+			}
+
+			// Model Endpoints (workspace-scoped)
+			if cfg.ModelEndpoints != nil {
+				r.Route("/model-endpoints", func(r chi.Router) {
+					r.Group(func(r chi.Router) {
+						r.Use(RequireRole("viewer", "editor", "admin"))
+						r.Get("/", cfg.ModelEndpoints.ListByWorkspace)
+					})
+					r.Group(func(r chi.Router) {
+						r.Use(RequireRole("editor", "admin"))
+						r.Post("/", cfg.ModelEndpoints.CreateForWorkspace)
+					})
 				})
 			}
 		})

@@ -15,6 +15,7 @@ import (
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
+// DEPRECATED: superseded by Model Endpoints (roadmap 009).
 // ModelConfigStoreForAPI is the interface the model config handler needs from the store.
 type ModelConfigStoreForAPI interface {
 	GetByScope(ctx context.Context, scope, scopeID string) (*store.ModelConfig, error)
@@ -23,6 +24,7 @@ type ModelConfigStoreForAPI interface {
 	Upsert(ctx context.Context, config *store.ModelConfig) error
 }
 
+// DEPRECATED: superseded by Model Endpoints (roadmap 009).
 // ModelConfigHandler provides HTTP handlers for model config endpoints.
 type ModelConfigHandler struct {
 	configs    ModelConfigStoreForAPI
@@ -30,6 +32,7 @@ type ModelConfigHandler struct {
 	dispatcher notify.EventDispatcher
 }
 
+// DEPRECATED: superseded by Model Endpoints (roadmap 009).
 // NewModelConfigHandler creates a new ModelConfigHandler.
 func NewModelConfigHandler(configs ModelConfigStoreForAPI, audit AuditStoreForAPI, dispatcher notify.EventDispatcher) *ModelConfigHandler {
 	return &ModelConfigHandler{
@@ -51,6 +54,7 @@ type updateModelConfigRequest struct {
 	EmbeddingModel         *string  `json:"embedding_model"`
 }
 
+// DEPRECATED: superseded by Model Endpoints (roadmap 009).
 // GetGlobal handles GET /api/v1/model-config.
 func (h *ModelConfigHandler) GetGlobal(w http.ResponseWriter, r *http.Request) {
 	config, err := h.configs.GetByScope(r.Context(), "global", "")
@@ -61,6 +65,7 @@ func (h *ModelConfigHandler) GetGlobal(w http.ResponseWriter, r *http.Request) {
 	RespondJSON(w, r, http.StatusOK, config)
 }
 
+// DEPRECATED: superseded by Model Endpoints (roadmap 009).
 // UpdateGlobal handles PUT /api/v1/model-config.
 func (h *ModelConfigHandler) UpdateGlobal(w http.ResponseWriter, r *http.Request) {
 	ifMatch := r.Header.Get("If-Match")
@@ -100,6 +105,7 @@ func (h *ModelConfigHandler) UpdateGlobal(w http.ResponseWriter, r *http.Request
 	RespondJSON(w, r, http.StatusOK, config)
 }
 
+// DEPRECATED: superseded by Model Endpoints (roadmap 009).
 // GetWorkspace handles GET /api/v1/workspaces/{workspaceId}/model-config.
 func (h *ModelConfigHandler) GetWorkspace(w http.ResponseWriter, r *http.Request) {
 	wsID := chi.URLParam(r, "workspaceId")
@@ -117,6 +123,7 @@ func (h *ModelConfigHandler) GetWorkspace(w http.ResponseWriter, r *http.Request
 	RespondJSON(w, r, http.StatusOK, config)
 }
 
+// DEPRECATED: superseded by Model Endpoints (roadmap 009).
 // UpdateWorkspace handles PUT /api/v1/workspaces/{workspaceId}/model-config.
 func (h *ModelConfigHandler) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 	wsID := chi.URLParam(r, "workspaceId")

@@ -151,6 +151,64 @@ func (m *mockDiscoveryModelConfigStore) Upsert(_ context.Context, config *store.
 	return nil
 }
 
+type mockDiscoveryModelEndpointStore struct {
+	endpoints []store.ModelEndpoint
+	versions  map[uuid.UUID]*store.ModelEndpointVersion
+	err       error
+}
+
+func (m *mockDiscoveryModelEndpointStore) Create(_ context.Context, _ *store.ModelEndpoint, _ json.RawMessage, _ string) error {
+	return nil
+}
+
+func (m *mockDiscoveryModelEndpointStore) GetBySlug(_ context.Context, _ string) (*store.ModelEndpoint, error) {
+	return nil, nil
+}
+
+func (m *mockDiscoveryModelEndpointStore) List(_ context.Context, _ *string, _ bool, _, _ int) ([]store.ModelEndpoint, int, error) {
+	if m.err != nil {
+		return nil, 0, m.err
+	}
+	return m.endpoints, len(m.endpoints), nil
+}
+
+func (m *mockDiscoveryModelEndpointStore) Update(_ context.Context, _ *store.ModelEndpoint, _ time.Time) error {
+	return nil
+}
+
+func (m *mockDiscoveryModelEndpointStore) Delete(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockDiscoveryModelEndpointStore) CreateVersion(_ context.Context, _ uuid.UUID, _ json.RawMessage, _, _ string) (*store.ModelEndpointVersion, error) {
+	return nil, nil
+}
+
+func (m *mockDiscoveryModelEndpointStore) ListVersions(_ context.Context, _ uuid.UUID, _, _ int) ([]store.ModelEndpointVersion, int, error) {
+	return nil, 0, nil
+}
+
+func (m *mockDiscoveryModelEndpointStore) GetVersion(_ context.Context, _ uuid.UUID, _ int) (*store.ModelEndpointVersion, error) {
+	return nil, nil
+}
+
+func (m *mockDiscoveryModelEndpointStore) GetActiveVersion(_ context.Context, endpointID uuid.UUID) (*store.ModelEndpointVersion, error) {
+	if m.versions != nil {
+		if v, ok := m.versions[endpointID]; ok {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("NOT_FOUND: no active version")
+}
+
+func (m *mockDiscoveryModelEndpointStore) ActivateVersion(_ context.Context, _ uuid.UUID, _ int) (*store.ModelEndpointVersion, error) {
+	return nil, nil
+}
+
+func (m *mockDiscoveryModelEndpointStore) CountAll(_ context.Context) (int, error) {
+	return len(m.endpoints), nil
+}
+
 // --- Tests ---
 
 func TestDiscoveryHandler_GetDiscovery_Success(t *testing.T) {
@@ -209,11 +267,37 @@ func TestDiscoveryHandler_GetDiscovery_Success(t *testing.T) {
 		},
 	}
 
+	epID := uuid.New()
+	modelEndpointStore := &mockDiscoveryModelEndpointStore{
+		endpoints: []store.ModelEndpoint{
+			{
+				ID:          epID,
+				Slug:        "openai-gpt4o",
+				Name:        "GPT-4o Production",
+				Provider:    "openai",
+				EndpointURL: "https://api.openai.com/v1",
+				ModelName:   "gpt-4o",
+				IsActive:    true,
+			},
+		},
+		versions: map[uuid.UUID]*store.ModelEndpointVersion{
+			epID: {
+				ID:         uuid.New(),
+				EndpointID: epID,
+				Version:    1,
+				Config:     json.RawMessage(`{"temperature":0.3,"max_tokens":4096}`),
+				IsActive:   true,
+				CreatedAt:  time.Now(),
+			},
+		},
+	}
+
 	handler := NewDiscoveryHandler(
 		agentStore,
 		mcpStore,
 		trustStore,
 		modelConfigStore,
+		modelEndpointStore,
 	)
 
 	// Act: Make request
@@ -259,6 +343,9 @@ func TestDiscoveryHandler_GetDiscovery_Success(t *testing.T) {
 	if _, ok := data["fetched_at"]; !ok {
 		t.Errorf("missing fetched_at field")
 	}
+	if _, ok := data["model_endpoints"]; !ok {
+		t.Errorf("missing model_endpoints field")
+	}
 
 	// Validate agents array
 	agents, ok := data["agents"].([]interface{})
@@ -267,6 +354,24 @@ func TestDiscoveryHandler_GetDiscovery_Success(t *testing.T) {
 	}
 	if len(agents) != 1 {
 		t.Errorf("expected 1 agent, got %d", len(agents))
+	}
+
+	// Validate model_endpoints array
+	modelEps, ok := data["model_endpoints"].([]interface{})
+	if !ok {
+		t.Fatalf("expected model_endpoints to be an array")
+	}
+	if len(modelEps) != 1 {
+		t.Errorf("expected 1 model endpoint, got %d", len(modelEps))
+	}
+	if len(modelEps) > 0 {
+		ep := modelEps[0].(map[string]interface{})
+		if ep["slug"] != "openai-gpt4o" {
+			t.Errorf("expected slug 'openai-gpt4o', got %v", ep["slug"])
+		}
+		if ep["active_version"] != float64(1) {
+			t.Errorf("expected active_version 1, got %v", ep["active_version"])
+		}
 	}
 }
 
@@ -280,6 +385,7 @@ func TestDiscoveryHandler_GetDiscovery_AgentStoreFailure(t *testing.T) {
 		&mockDiscoveryMCPStore{servers: []store.MCPServer{}},
 		&mockDiscoveryTrustStore{defaults: []store.TrustDefault{}},
 		&mockDiscoveryModelConfigStore{config: nil},
+		&mockDiscoveryModelEndpointStore{},
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/discovery", nil)
@@ -300,6 +406,7 @@ func TestDiscoveryHandler_GetDiscovery_EmptyState(t *testing.T) {
 		&mockDiscoveryMCPStore{servers: []store.MCPServer{}},
 		&mockDiscoveryTrustStore{defaults: []store.TrustDefault{}},
 		&mockDiscoveryModelConfigStore{config: nil},
+		&mockDiscoveryModelEndpointStore{},
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/discovery", nil)
@@ -347,6 +454,7 @@ func TestDiscoveryHandler_GetDiscovery_MCPStoreFailure(t *testing.T) {
 		&mockDiscoveryMCPStore{err: fmt.Errorf("mcp error")},
 		&mockDiscoveryTrustStore{defaults: []store.TrustDefault{}},
 		&mockDiscoveryModelConfigStore{config: nil},
+		&mockDiscoveryModelEndpointStore{},
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/discovery", nil)
@@ -367,6 +475,7 @@ func TestDiscoveryHandler_GetDiscovery_ModelConfigStoreFailure(t *testing.T) {
 		&mockDiscoveryMCPStore{servers: []store.MCPServer{}},
 		&mockDiscoveryTrustStore{defaults: []store.TrustDefault{}},
 		&mockDiscoveryModelConfigStore{err: fmt.Errorf("model config error")},
+		&mockDiscoveryModelEndpointStore{},
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/discovery", nil)

@@ -113,6 +113,7 @@ func run() error {
 	trustDefaultStore := store.NewTrustDefaultStore(pool)
 	modelConfigStore := store.NewModelConfigStore(pool)
 	webhookStore := store.NewWebhookStore(pool)
+	modelEndpointStore := store.NewModelEndpointStore(pool, []byte(cfg.CredentialEncryptionKey))
 
 	// Create webhook dispatcher
 	dispatcher := notify.NewDispatcher(&subscriptionLoaderAdapter{store: webhookStore}, notify.Config{
@@ -202,8 +203,9 @@ func run() error {
 	trustDefaultsHandler := api.NewTrustDefaultsHandler(trustDefaultStore, auditStore, dispatcher)
 	modelConfigHandler := api.NewModelConfigHandler(modelConfigStore, auditStore, dispatcher)
 	webhooksHandler := api.NewWebhooksHandler(webhookStore, auditStore)
+	modelEndpointsHandler := api.NewModelEndpointsHandler(modelEndpointStore, auditStore, encKey, dispatcher)
 	auditLogHandler := api.NewAuditHandler(auditStore)
-	discoveryHandler := api.NewDiscoveryHandler(agentStore, mcpServerStore, trustDefaultStore, modelConfigStore)
+	discoveryHandler := api.NewDiscoveryHandler(agentStore, mcpServerStore, trustDefaultStore, modelConfigStore, modelEndpointStore)
 
 	// Set up router
 	router := api.NewRouter(api.RouterConfig{
@@ -216,7 +218,8 @@ func run() error {
 		MCPServers:    mcpServersHandler,
 		TrustRules:    trustRulesHandler,
 		TrustDefaults: trustDefaultsHandler,
-		ModelConfig:   modelConfigHandler,
+		ModelConfig:    modelConfigHandler,
+		ModelEndpoints: modelEndpointsHandler,
 		Webhooks:      webhooksHandler,
 		Discovery:     discoveryHandler,
 		AuditLog:      auditLogHandler,

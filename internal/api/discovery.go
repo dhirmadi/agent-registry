@@ -10,10 +10,11 @@ import (
 
 // DiscoveryHandler provides the discovery endpoint for fetching all active configuration.
 type DiscoveryHandler struct {
-	agents AgentStoreForAPI
-	mcp    MCPServerStoreForAPI
-	trust  TrustDefaultStoreForAPI
-	model  ModelConfigStoreForAPI
+	agents         AgentStoreForAPI
+	mcp            MCPServerStoreForAPI
+	trust          TrustDefaultStoreForAPI
+	model          ModelConfigStoreForAPI
+	modelEndpoints ModelEndpointStoreForAPI
 }
 
 // NewDiscoveryHandler creates a new DiscoveryHandler.
@@ -22,12 +23,14 @@ func NewDiscoveryHandler(
 	mcp MCPServerStoreForAPI,
 	trust TrustDefaultStoreForAPI,
 	model ModelConfigStoreForAPI,
+	modelEndpoints ModelEndpointStoreForAPI,
 ) *DiscoveryHandler {
 	return &DiscoveryHandler{
-		agents: agents,
-		mcp:    mcp,
-		trust:  trust,
-		model:  model,
+		agents:         agents,
+		mcp:            mcp,
+		trust:          trust,
+		model:          model,
+		modelEndpoints: modelEndpoints,
 	}
 }
 
@@ -39,10 +42,11 @@ func (h *DiscoveryHandler) GetDiscovery(w http.ResponseWriter, r *http.Request) 
 
 	// Storage for results
 	var (
-		agentsList        []agentAPIResponse
-		mcpServersList    []mcpServerResponse
-		trustDefaultsList interface{}
-		modelConfig       interface{}
+		agentsList         []agentAPIResponse
+		mcpServersList     []mcpServerResponse
+		trustDefaultsList  interface{}
+		modelConfig        interface{}
+		modelEndpointsList []map[string]interface{}
 	)
 
 	// Fetch agents (active only, limit 1000)
@@ -100,19 +104,54 @@ func (h *DiscoveryHandler) GetDiscovery(w http.ResponseWriter, r *http.Request) 
 		return nil
 	})
 
+	// Fetch model endpoints with active version configs
+	if h.modelEndpoints != nil {
+		g.Go(func() error {
+			endpoints, _, err := h.modelEndpoints.List(ctx, nil, true, 0, 1000)
+			if err != nil {
+				return err
+			}
+			modelEndpointsList = make([]map[string]interface{}, 0, len(endpoints))
+			for i := range endpoints {
+				ep := &endpoints[i]
+				entry := map[string]interface{}{
+					"slug":         ep.Slug,
+					"name":         ep.Name,
+					"provider":     ep.Provider,
+					"endpoint_url": ep.EndpointURL,
+					"model_name":   ep.ModelName,
+					"is_active":    ep.IsActive,
+				}
+				activeVer, err := h.modelEndpoints.GetActiveVersion(ctx, ep.ID)
+				if err == nil && activeVer != nil {
+					entry["active_version"] = activeVer.Version
+					entry["config"] = redactConfigHeaders(activeVer.Config)
+				}
+				modelEndpointsList = append(modelEndpointsList, entry)
+			}
+			return nil
+		})
+	}
+
 	// Wait for all fetches to complete
 	if err := g.Wait(); err != nil {
 		RespondError(w, r, apierrors.Internal("failed to fetch discovery data"))
 		return
 	}
 
+	// Ensure model_endpoints is not nil
+	if modelEndpointsList == nil {
+		modelEndpointsList = []map[string]interface{}{}
+	}
+
 	// Build response
 	response := map[string]interface{}{
-		"agents":         agentsList,
-		"mcp_servers":    mcpServersList,
-		"trust_defaults": trustDefaultsList,
-		"model_config":   modelConfig,
-		"fetched_at":     time.Now().UTC().Format(time.RFC3339),
+		"agents":          agentsList,
+		"mcp_servers":     mcpServersList,
+		"trust_defaults":  trustDefaultsList,
+		"model_config":    modelConfig,
+		"model_endpoints": modelEndpointsList,
+		"fetched_at":      time.Now().UTC().Format(time.RFC3339),
 	}
 
 	RespondJSON(w, r, http.StatusOK, response)
