@@ -22,6 +22,9 @@ type Config struct {
 	WebhookWorkers         int
 	MCPEnabled             bool
 	A2ARegistryURL         string
+	GatewayMode            bool
+	GatewayTimeoutS        int
+	GatewayMaxBodySize     int64
 }
 
 // Load reads configuration from environment variables.
@@ -90,6 +93,17 @@ func LoadFrom(env map[string]string) (*Config, error) {
 	// Optional A2A registry URL (enables push to external registry when set)
 	cfg.A2ARegistryURL = get("A2A_REGISTRY_URL")
 
+	// Gateway config
+	cfg.GatewayMode = getBoolOrDefault(get, "GATEWAY_MODE", false)
+	cfg.GatewayTimeoutS, err = getIntOrDefault(get, "GATEWAY_TIMEOUT", 30)
+	if err != nil {
+		return nil, err
+	}
+	cfg.GatewayMaxBodySize, err = getInt64OrDefault(get, "GATEWAY_MAX_BODY_SIZE", 1048576)
+	if err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
 }
 
@@ -120,6 +134,18 @@ func getIntOrDefault(get func(string) string, key string, defaultVal int) (int, 
 		return defaultVal, nil
 	}
 	n, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %s: %w", key, err)
+	}
+	return n, nil
+}
+
+func getInt64OrDefault(get func(string) string, key string, defaultVal int64) (int64, error) {
+	v := get(key)
+	if v == "" {
+		return defaultVal, nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid value for %s: %w", key, err)
 	}

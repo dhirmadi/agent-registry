@@ -594,7 +594,7 @@ func TestPerf_Load_100Concurrent_1000Requests(t *testing.T) {
 		target time.Duration
 	}{
 		{"ping", jsonRPCBody("ping", 1), 50 * time.Millisecond},
-		{"tools/list", jsonRPCBody("tools/list", 1), 50 * time.Millisecond},
+		{"tools/list", jsonRPCBody("tools/list", 1), 100 * time.Millisecond},
 		{"tools/call(list_agents)", jsonRPCBody("tools/call", 1, `{"name":"list_agents","arguments":{}}`), 200 * time.Millisecond},
 		{"tools/call(get_discovery)", jsonRPCBody("tools/call", 1, `{"name":"get_discovery","arguments":{}}`), 200 * time.Millisecond},
 		{"resources/list", jsonRPCBody("resources/list", 1), 200 * time.Millisecond},

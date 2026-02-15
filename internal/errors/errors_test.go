@@ -70,6 +70,20 @@ func TestConstructors(t *testing.T) {
 			wantStatus: 500,
 			wantMsg:    "unexpected error",
 		},
+		{
+			name:       "ServiceUnavailable",
+			fn:         func() *APIError { return ServiceUnavailable("circuit breaker open") },
+			wantCode:   "SERVICE_UNAVAILABLE",
+			wantStatus: 503,
+			wantMsg:    "circuit breaker open",
+		},
+		{
+			name:       "BadGateway",
+			fn:         func() *APIError { return BadGateway("upstream failure") },
+			wantCode:   "BAD_GATEWAY",
+			wantStatus: 502,
+			wantMsg:    "upstream failure",
+		},
 	}
 
 	for _, tc := range tests {

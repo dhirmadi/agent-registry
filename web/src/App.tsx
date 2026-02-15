@@ -21,6 +21,7 @@ import { UsersPage } from './pages/UsersPage';
 import { AuditLogPage } from './pages/AuditLogPage';
 import { MyAccountPage } from './pages/MyAccountPage';
 import { A2APage } from './pages/A2APage';
+import { GatewayPage } from './pages/GatewayPage';
 
 export function App() {
   return (
@@ -60,6 +61,7 @@ export function App() {
                 <Route path="users" element={<UsersPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
                 <Route path="a2a" element={<A2APage />} />
+                <Route path="gateway" element={<GatewayPage />} />
                 <Route path="my-account" element={<MyAccountPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

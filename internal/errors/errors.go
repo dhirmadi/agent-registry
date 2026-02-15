@@ -76,3 +76,19 @@ func PasswordChangeRequired() *APIError {
 		Status:  403,
 	}
 }
+
+func ServiceUnavailable(msg string) *APIError {
+	return &APIError{
+		Code:    "SERVICE_UNAVAILABLE",
+		Message: msg,
+		Status:  503,
+	}
+}
+
+func BadGateway(msg string) *APIError {
+	return &APIError{
+		Code:    "BAD_GATEWAY",
+		Message: msg,
+		Status:  502,
+	}
+}

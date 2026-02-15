@@ -116,6 +116,9 @@ export function AppLayout() {
             <NavLink to="/users">Users</NavLink>
           </NavItem>
         )}
+        <NavItem isActive={isActive('/gateway')}>
+          <NavLink to="/gateway">Gateway</NavLink>
+        </NavItem>
         <NavItem isActive={isActive('/a2a')}>
           <NavLink to="/a2a">A2A Agent Cards</NavLink>
         </NavItem>
