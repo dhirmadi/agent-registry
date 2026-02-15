@@ -222,3 +222,58 @@ func searchString(s, substr string) bool {
 	}
 	return false
 }
+
+func TestLoad_MCPEnabled_Default(t *testing.T) {
+	env := map[string]string{
+		"DATABASE_URL":              "postgres://localhost/test",
+		"SESSION_SECRET":            "abc123",
+		"CREDENTIAL_ENCRYPTION_KEY": "12345678901234567890123456789012",
+	}
+
+	cfg, err := LoadFrom(env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.MCPEnabled {
+		t.Error("MCPEnabled should default to true")
+	}
+}
+
+func TestLoad_MCPEnabled(t *testing.T) {
+	base := map[string]string{
+		"DATABASE_URL":              "postgres://localhost/test",
+		"SESSION_SECRET":            "abc123",
+		"CREDENTIAL_ENCRYPTION_KEY": "12345678901234567890123456789012",
+	}
+
+	tests := []struct {
+		name string
+		val  string
+		want bool
+	}{
+		{"default (empty)", "", true},
+		{"explicit true", "true", true},
+		{"explicit false", "false", false},
+		{"1 is true", "1", true},
+		{"0 is false", "0", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			env := make(map[string]string)
+			for k, v := range base {
+				env[k] = v
+			}
+			if tc.val != "" {
+				env["MCP_ENABLED"] = tc.val
+			}
+			cfg, err := LoadFrom(env)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if cfg.MCPEnabled != tc.want {
+				t.Errorf("MCPEnabled = %v, want %v", cfg.MCPEnabled, tc.want)
+			}
+		})
+	}
+}

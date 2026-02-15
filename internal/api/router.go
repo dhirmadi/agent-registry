@@ -42,6 +42,7 @@ type RouterConfig struct {
 	Webhooks      *WebhooksHandler
 	Discovery     *DiscoveryHandler
 	A2A           *A2AHandler
+	MCP           *MCPHandler
 	AuditLog      *AuditHandler
 	AuthMW        func(http.Handler) http.Handler
 	UserLookup    UserLookup             // For MustChangePassMiddleware (nil = no enforcement)
@@ -68,6 +69,23 @@ func NewRouter(cfg RouterConfig) chi.Router {
 	// A2A well-known endpoint (public, no auth required)
 	if cfg.A2A != nil {
 		r.Get("/.well-known/agent.json", cfg.A2A.GetWellKnownAgentCard)
+	}
+
+	// MCP protocol endpoints
+	if cfg.MCP != nil {
+		// Public manifest (no auth)
+		r.Get("/mcp.json", cfg.MCP.ServeManifest)
+
+		// MCP transport (auth + role required)
+		r.Route("/mcp", func(r chi.Router) {
+			if cfg.AuthMW != nil {
+				r.Use(cfg.AuthMW)
+			}
+			r.Use(RequireRole("viewer", "editor", "admin"))
+			r.Post("/", cfg.MCP.HandlePost)
+			r.Get("/", cfg.MCP.HandleSSE)
+			r.Delete("/", cfg.MCP.HandleDelete)
+		})
 	}
 
 	// Auth routes

@@ -208,6 +208,17 @@ func run() error {
 	discoveryHandler := api.NewDiscoveryHandler(agentStore, mcpServerStore, trustDefaultStore, modelConfigStore, modelEndpointStore)
 	a2aHandler := api.NewA2AHandler(agentStore, cfg.ExternalURL)
 
+	// Create MCP handler (if enabled)
+	var mcpHandler *api.MCPHandler
+	if cfg.MCPEnabled {
+		mcpToolExecutor := api.NewMCPToolExecutor(agentStore, promptStore, mcpServerStore, modelConfigStore, modelEndpointStore, cfg.ExternalURL)
+		mcpResourceProvider := api.NewMCPResourceProvider(agentStore, promptStore, modelConfigStore)
+		mcpPromptProvider := api.NewMCPPromptProvider(agentStore, promptStore)
+		mcpManifestHandler := api.NewMCPManifestHandler(cfg.ExternalURL)
+		mcpHandler = api.NewMCPHandler(mcpToolExecutor, mcpResourceProvider, mcpPromptProvider, mcpManifestHandler)
+		log.Println("MCP protocol enabled")
+	}
+
 	// Set up router
 	router := api.NewRouter(api.RouterConfig{
 		Health:        health,
@@ -224,6 +235,7 @@ func run() error {
 		Webhooks:      webhooksHandler,
 		Discovery:     discoveryHandler,
 		A2A:           a2aHandler,
+		MCP:           mcpHandler,
 		AuditLog:      auditLogHandler,
 		AuthMW:        authMW,
 		UserLookup:    &userLookupAdapter{store: userStore},
