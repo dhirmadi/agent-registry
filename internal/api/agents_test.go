@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
 	"github.com/agent-smit/agentic-registry/internal/auth"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
@@ -25,6 +26,7 @@ type mockAgentStore struct {
 
 	createErr   error
 	getByIDErr  error
+	listErr     error
 	updateErr   error
 	deleteErr   error
 	rollbackErr error
@@ -42,7 +44,7 @@ func (m *mockAgentStore) Create(_ context.Context, agent *store.Agent) error {
 		return m.createErr
 	}
 	if _, exists := m.agents[agent.ID]; exists {
-		return fmt.Errorf("CONFLICT: agent '%s' already exists", agent.ID)
+		return apierrors.Conflict(fmt.Sprintf("agent '%s' already exists", agent.ID))
 	}
 	agent.Version = 1
 	agent.CreatedAt = time.Now()
@@ -73,12 +75,15 @@ func (m *mockAgentStore) GetByID(_ context.Context, id string) (*store.Agent, er
 	}
 	a, ok := m.agents[id]
 	if !ok {
-		return nil, fmt.Errorf("NOT_FOUND: agent '%s' not found", id)
+		return nil, apierrors.NotFound("agent", id)
 	}
 	return a, nil
 }
 
 func (m *mockAgentStore) List(_ context.Context, activeOnly bool, offset, limit int) ([]store.Agent, int, error) {
+	if m.listErr != nil {
+		return nil, 0, m.listErr
+	}
 	var all []store.Agent
 	for _, a := range m.agents {
 		if activeOnly && !a.IsActive {
@@ -103,10 +108,10 @@ func (m *mockAgentStore) Update(_ context.Context, agent *store.Agent, updatedAt
 	}
 	existing, ok := m.agents[agent.ID]
 	if !ok {
-		return fmt.Errorf("NOT_FOUND: agent '%s' not found", agent.ID)
+		return apierrors.NotFound("agent", agent.ID)
 	}
 	if !existing.UpdatedAt.Equal(updatedAt) {
-		return fmt.Errorf("CONFLICT: resource was modified by another client")
+		return apierrors.Conflict("resource was modified by another client")
 	}
 	agent.Version = existing.Version + 1
 	agent.UpdatedAt = time.Now()
@@ -131,10 +136,10 @@ func (m *mockAgentStore) Update(_ context.Context, agent *store.Agent, updatedAt
 func (m *mockAgentStore) Patch(_ context.Context, id string, fields map[string]interface{}, updatedAt time.Time, actor string) (*store.Agent, error) {
 	existing, ok := m.agents[id]
 	if !ok {
-		return nil, fmt.Errorf("NOT_FOUND: agent '%s' not found", id)
+		return nil, apierrors.NotFound("agent", id)
 	}
 	if !existing.UpdatedAt.Equal(updatedAt) {
-		return nil, fmt.Errorf("CONFLICT: resource was modified by another client")
+		return nil, apierrors.Conflict("resource was modified by another client")
 	}
 	if v, ok := fields["name"]; ok {
 		s, ok := v.(string)
@@ -169,7 +174,7 @@ func (m *mockAgentStore) Delete(_ context.Context, id string) error {
 	}
 	a, ok := m.agents[id]
 	if !ok {
-		return fmt.Errorf("NOT_FOUND: agent '%s' not found", id)
+		return apierrors.NotFound("agent", id)
 	}
 	a.IsActive = false
 	return nil
@@ -195,7 +200,7 @@ func (m *mockAgentStore) GetVersion(_ context.Context, agentID string, version i
 			return &versions[i], nil
 		}
 	}
-	return nil, fmt.Errorf("NOT_FOUND: agent_version '%s/v%d' not found", agentID, version)
+	return nil, apierrors.NotFound("agent_version", fmt.Sprintf("%s/v%d", agentID, version))
 }
 
 func (m *mockAgentStore) Rollback(_ context.Context, agentID string, targetVersion int, actor string) (*store.Agent, error) {
@@ -211,7 +216,7 @@ func (m *mockAgentStore) Rollback(_ context.Context, agentID string, targetVersi
 		}
 	}
 	if target == nil {
-		return nil, fmt.Errorf("NOT_FOUND: agent_version '%s/v%d' not found", agentID, targetVersion)
+		return nil, apierrors.NotFound("agent_version", fmt.Sprintf("%s/v%d", agentID, targetVersion))
 	}
 
 	existing := m.agents[agentID]
@@ -324,7 +329,7 @@ func TestAgentsHandler_Create(t *testing.T) {
 				"name": "Duplicate Agent",
 			},
 			role:       "editor",
-			storeErr:   fmt.Errorf("CONFLICT: agent 'duplicate_agent' already exists"),
+			storeErr:   apierrors.Conflict("agent 'duplicate_agent' already exists"),
 			wantStatus: http.StatusConflict,
 			wantErr:    true,
 		},
