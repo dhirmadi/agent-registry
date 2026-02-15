@@ -1,0 +1,39 @@
+---
+description: React/TypeScript conventions for the admin GUI
+globs: web/src/**/*.tsx, web/src/**/*.ts
+alwaysApply: false
+---
+
+# React Frontend Patterns
+
+## Stack
+
+- React 18 + TypeScript ~5.6
+- PatternFly 5 for all UI — Page, PageSection, Card, Table, Modal, Form, Alert, EmptyState
+- react-router-dom v6 with `<BrowserRouter>`
+- State management: React Context only (no Redux, no Zustand)
+
+## API Calls
+
+All API calls go through `web/src/api/client.ts`. It handles CSRF tokens and session cookies automatically. Never use `fetch` directly in components.
+
+## Project Structure
+
+```
+web/src/
+├── App.tsx              # Router + AuthContext + AppLayout
+├── api/client.ts        # Fetch wrapper (CSRF + cookie handling)
+├── auth/                # Login, AuthContext, ProtectedRoute
+├── pages/               # One page per resource
+├── components/          # Reusable: AppLayout, ConfirmDialog, etc.
+└── types/index.ts       # TypeScript interfaces matching API types
+```
+
+## Key Rules
+
+- Use PatternFly 5 components — no Tailwind, no custom CSS frameworks
+- Types in `types/index.ts` must match API response schemas from spec
+- Show "Sign in with Google" only if backend reports OAuth configured
+- Role-aware UI: viewer=read-only, editor=edit, admin=user management
+- Error display: PatternFly Alert. Loading: PatternFly Spinner.
+- No dependencies beyond spec Appendix C.2

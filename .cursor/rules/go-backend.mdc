@@ -1,0 +1,49 @@
+---
+description: Go backend conventions for handlers, store, auth, and middleware
+globs: internal/**/*.go, cmd/**/*.go
+alwaysApply: false
+---
+
+# Go Backend Patterns
+
+## Handler Pattern (`internal/api/`)
+
+```go
+func (h *Handler) CreateAgent(w http.ResponseWriter, r *http.Request) {
+    // 1. Parse + validate input
+    // 2. Call store function
+    // 3. Audit log: store.InsertAuditLog(ctx, ...)
+    // 4. Dispatch webhook notification
+    // 5. Respond with envelope via respond.go helpers
+}
+```
+
+- Use `internal/errors.APIError` constructors: `NotFound()`, `Conflict()`, `Validation()`, `Forbidden()`, `Locked()`
+- Response via `respond.go` helpers — never write JSON directly
+- Auth: session OR API key via middleware. Role checks inside handlers.
+
+## Store Pattern (`internal/store/`)
+
+- One file per resource, raw SQL via pgx
+- Use `$1`, `$2` parameterized queries — never string interpolation
+- Multi-row mutations: wrap in `pgx.BeginTx`
+- Optimistic concurrency: include `updated_at` in WHERE for updates, return `Conflict()` on mismatch
+- Scan rows into Go structs, return typed errors
+
+## Error Handling
+
+```go
+// Return APIError from handlers
+if err != nil {
+    respond.Error(w, r, errors.NotFound("agent", id))
+    return
+}
+```
+
+## Key Rules
+
+- No gin, echo, gorm, gorilla — chi/v5 only
+- No external crypto — stdlib `crypto/*` only
+- `password_hash` fields: always `json:"-"`
+- `CREDENTIAL_ENCRYPTION_KEY`: never log, never expose
+- All mutations must call `store.InsertAuditLog()`

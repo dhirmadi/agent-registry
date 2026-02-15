@@ -1,0 +1,46 @@
+---
+description: Go test patterns — TDD, table-driven tests, stdlib only
+globs: internal/**/*_test.go
+alwaysApply: false
+---
+
+# Go Test Patterns
+
+## TDD Workflow
+
+1. Write the test first (`*_test.go` next to the source file)
+2. Run it — confirm it fails (Red)
+3. Write minimal code to pass (Green)
+4. Refactor, re-run with `-race`
+
+## Table-Driven Tests
+
+```go
+func TestAgentCreate(t *testing.T) {
+    tests := []struct {
+        name       string
+        input      AgentInput
+        wantStatus int
+        wantErr    string
+    }{
+        {"valid agent", AgentInput{Name: "test"}, 201, ""},
+        {"missing name", AgentInput{}, 400, "VALIDATION_ERROR"},
+        {"duplicate name", AgentInput{Name: "existing"}, 409, "CONFLICT"},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // ... test body
+        })
+    }
+}
+```
+
+## Key Rules
+
+- Use stdlib `testing` only — no testify, no gomock
+- Always use `t.Run()` for sub-tests
+- Test happy path, validation errors, auth failures, role restrictions
+- Run with `go test -race -count=1` during development
+- Every mutation test must verify audit log entry
+- Test optimistic concurrency (If-Match / updated_at mismatch)
+- Use `t.Parallel()` where safe (no shared mutable state)

@@ -1,0 +1,49 @@
+---
+description: React/Vitest testing patterns for the admin GUI
+globs: web/src/**/*.test.tsx, web/src/**/*.test.ts
+alwaysApply: false
+---
+
+# Frontend Test Patterns
+
+## Stack
+
+- Vitest + @testing-library/react
+- Setup file: `web/src/test-setup.ts`
+- Config in `web/vite.config.ts` (jsdom environment, globals enabled)
+
+## Testing Philosophy
+
+Test user-visible behavior, not implementation details. Use semantic queries.
+
+## Pattern
+
+```tsx
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
+
+// Mock API client
+vi.mock('../api/client');
+
+describe('AgentsPage', () => {
+  it('displays agent list', async () => {
+    render(<AgentsPage />);
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+  });
+
+  it('shows error on API failure', async () => {
+    // Mock failure
+    render(<AgentsPage />);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+});
+```
+
+## Key Rules
+
+- Mock `api/client.ts` — never hit real API
+- Use `screen.getByRole()`, `screen.findByText()` — prefer semantic queries
+- Use `userEvent` over `fireEvent` for realistic interactions
+- Test: login flow, CRUD operations, role-based visibility, error states, form validation
+- Run with `npm test -- --run` (no watch mode for CI)

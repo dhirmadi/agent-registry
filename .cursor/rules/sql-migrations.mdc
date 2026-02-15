@@ -1,0 +1,45 @@
+---
+description: SQL migration conventions for golang-migrate
+globs: migrations/*.sql
+alwaysApply: false
+---
+
+# SQL Migration Patterns
+
+## Naming Convention
+
+`NNN_description.up.sql` / `NNN_description.down.sql`
+- Sequential numbering: `001`, `002`, etc.
+- Always create both up and down migrations
+- Down migration must cleanly reverse the up migration
+
+## Schema Rules
+
+- All tables use `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
+- Include `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`
+- Include `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` (used for optimistic concurrency / ETag)
+- Use `REFERENCES ... ON DELETE CASCADE` for child tables
+- Add indexes on foreign keys and frequently queried columns
+
+## Example
+
+```sql
+-- 007_agents.up.sql
+CREATE TABLE agents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    version INTEGER NOT NULL DEFAULT 1,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_agents_name ON agents(name);
+```
+
+## Key Rules
+
+- Migrations are embedded in the Go binary via `migrations/embed.go`
+- They run automatically on server startup via golang-migrate
+- Never modify an existing migration — create a new one
+- Use `IF NOT EXISTS` / `IF EXISTS` for idempotency where appropriate

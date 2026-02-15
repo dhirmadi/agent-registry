@@ -1,0 +1,49 @@
+---
+description: Core project conventions for the Agentic Registry microservice
+alwaysApply: true
+---
+
+# Agentic Registry — Project Rules
+
+## Spec Is Law
+
+The file `docs/specification/agentic_registry_spec.md` is the single source of truth for all API contracts, schemas, auth flows, and behaviors. Consult it before implementing. Do not invent endpoints, fields, or behaviors not described there.
+
+## Architecture
+
+- **Layered flow:** Handler (`internal/api/`) → Store (`internal/store/`) → DB (`pgx`). Handlers never touch pgx directly.
+- **No ORM.** All SQL is explicit in `internal/store/` files using pgx `$1` parameterized queries.
+- **Embedded SPA.** React app built at Docker time, served via `embed.FS`. API routes (`/api/v1/*`, `/auth/*`) take priority over SPA fallback.
+
+## Tech Stack (strict — no substitutions)
+
+| Layer | Technology |
+|-------|-----------|
+| Language | Go 1.24 |
+| Router | chi/v5 |
+| Database | PostgreSQL 16 via pgx/v5 |
+| Migrations | golang-migrate/v4 with embedded SQL |
+| Auth | bcrypt (cost 12), Google OAuth 2.0 PKCE, SHA-256 API keys |
+| Crypto | stdlib only — AES-256-GCM, HMAC-SHA256, crypto/rand |
+| Frontend | React 18 + PatternFly 5 + Vite + TypeScript |
+| Go tests | stdlib `testing` package only (no testify) |
+| Frontend tests | Vitest + @testing-library/react |
+
+## API Response Envelope
+
+All endpoints return: `{ success, data, error: { code, message } | null, meta: { timestamp, request_id } }`.
+
+## Conventional Commits
+
+Format: `<type>(<scope>): <description>`
+Types: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`, `ci`, `perf`
+Scopes: `api`, `auth`, `store`, `db`, `config`, `notify`, `ratelimit`, `telemetry`, `errors`, `web`, `migrations`, `docker`, `ci`
+
+## Security Defaults
+
+- MCP secrets: AES-256-GCM encrypted at rest
+- Passwords: bcrypt cost 12, `json:"-"` on hash fields
+- API keys: SHA-256 hashed, plaintext shown once at creation only
+- CSRF: double-submit cookie on all non-GET session endpoints
+- Rate limiting: 5 login failures → 15 min lockout
+- Audit: every mutation recorded in `audit_log`
