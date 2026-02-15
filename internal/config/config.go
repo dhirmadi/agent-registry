@@ -20,6 +20,7 @@ type Config struct {
 	WebhookTimeoutS        int
 	WebhookRetries         int
 	WebhookWorkers         int
+	MCPEnabled             bool
 }
 
 // Load reads configuration from environment variables.
@@ -82,12 +83,29 @@ func LoadFrom(env map[string]string) (*Config, error) {
 		return nil, err
 	}
 
+	// Bool with default
+	cfg.MCPEnabled = getBoolOrDefault(get, "MCP_ENABLED", true)
+
 	return cfg, nil
 }
 
 func getOrDefault(get func(string) string, key, defaultVal string) string {
 	if v := get(key); v != "" {
 		return v
+	}
+	return defaultVal
+}
+
+func getBoolOrDefault(get func(string) string, key string, defaultVal bool) bool {
+	v := get(key)
+	if v == "" {
+		return defaultVal
+	}
+	switch v {
+	case "true", "1", "yes":
+		return true
+	case "false", "0", "no":
+		return false
 	}
 	return defaultVal
 }

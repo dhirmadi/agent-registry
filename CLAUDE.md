@@ -35,7 +35,8 @@ This microservice becomes the **single source of truth** for agent configuration
 | Tests (Go) | stdlib `testing` package |
 | Tests (Frontend) | Vitest + @testing-library/react |
 | Observability | OpenTelemetry (traces) + Prometheus (metrics) |
-| Deployment | Multi-stage Docker (Node → Go → Alpine) |
+| Deployment | Multi-stage Dockerfile (Node → Go → Alpine) via **Podman** |
+| Container Tools | **Podman** + **podman-compose** (NOT Docker/docker-compose) |
 
 ### Project Layout
 
@@ -105,10 +106,16 @@ cd web && npm test                              # Run Vitest
 cd web && npm test -- --run                     # Run once (no watch)
 ```
 
-### Docker
+### Container Management (Podman)
+
+**IMPORTANT:** This project uses **Podman** and **podman-compose**, NOT Docker.
 
 ```bash
-docker build -t agentic-registry .              # Full multi-stage build
+podman build -t agentic-registry .              # Build image
+podman-compose up -d                            # Start services (deployment/compose.yaml)
+podman-compose down                             # Stop services
+podman-compose logs -f                          # Follow logs
+podman ps                                       # List containers
 ```
 
 ### Database

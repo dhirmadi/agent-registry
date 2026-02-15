@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
@@ -49,7 +49,7 @@ func (m *mockWebhookStore) List(_ context.Context) ([]store.WebhookSubscription,
 
 func (m *mockWebhookStore) Delete(_ context.Context, id uuid.UUID) error {
 	if _, ok := m.subs[id]; !ok {
-		return fmt.Errorf("webhook_subscription '%s' NOT_FOUND", id)
+		return apierrors.NotFound("webhook_subscription", id.String())
 	}
 	delete(m.subs, id)
 	return nil

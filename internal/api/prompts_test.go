@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	apierrors "github.com/agent-smit/agentic-registry/internal/errors"
 	"github.com/agent-smit/agentic-registry/internal/store"
 )
 
@@ -59,13 +61,13 @@ func (m *mockPromptStore) GetActive(_ context.Context, agentID string) (*store.P
 			return p, nil
 		}
 	}
-	return nil, fmt.Errorf("NOT_FOUND: active prompt not found")
+	return nil, apierrors.NotFound("prompt", "active")
 }
 
 func (m *mockPromptStore) GetByID(_ context.Context, id uuid.UUID) (*store.Prompt, error) {
 	p, ok := m.prompts[id]
 	if !ok {
-		return nil, fmt.Errorf("NOT_FOUND: prompt '%s' not found", id)
+		return nil, apierrors.NotFound("prompt", id.String())
 	}
 	return p, nil
 }
@@ -100,7 +102,7 @@ func (m *mockPromptStore) Create(_ context.Context, prompt *store.Prompt) error 
 func (m *mockPromptStore) Activate(_ context.Context, id uuid.UUID) (*store.Prompt, error) {
 	target, ok := m.prompts[id]
 	if !ok {
-		return nil, fmt.Errorf("NOT_FOUND: prompt '%s' not found", id)
+		return nil, apierrors.NotFound("prompt", id.String())
 	}
 	// Deactivate all for this agent
 	for _, pid := range m.byAgent[target.AgentID] {
@@ -121,7 +123,7 @@ func (m *mockPromptStore) Rollback(_ context.Context, agentID string, targetVers
 		}
 	}
 	if target == nil {
-		return nil, fmt.Errorf("NOT_FOUND: prompt version %d not found", targetVersion)
+		return nil, apierrors.NotFound("prompt_version", strconv.Itoa(targetVersion))
 	}
 
 	// Create new prompt from target
@@ -145,7 +147,7 @@ func (m *mockPromptStore) GetByVersion(_ context.Context, agentID string, versio
 			return m.prompts[id], nil
 		}
 	}
-	return nil, fmt.Errorf("NOT_FOUND: prompt '%s/v%d' not found", agentID, version)
+	return nil, apierrors.NotFound("prompt_version", agentID+"/v"+strconv.Itoa(version))
 }
 
 // --- Mock agent lookup for prompts handler ---
@@ -156,7 +158,7 @@ type mockAgentLookupForPrompts struct {
 
 func (m *mockAgentLookupForPrompts) GetByID(_ context.Context, id string) (*store.Agent, error) {
 	if !m.agents[id] {
-		return nil, fmt.Errorf("NOT_FOUND: agent '%s' not found", id)
+		return nil, apierrors.NotFound("agent", id)
 	}
 	return &store.Agent{ID: id, Name: "Mock Agent"}, nil
 }
