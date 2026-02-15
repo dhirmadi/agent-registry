@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -37,6 +38,7 @@ type A2AAgentCard struct {
 type A2AProvider struct {
 	Organization string `json:"organization"`
 	URL          string `json:"url"`
+	Status       string `json:"status,omitempty"`
 }
 
 // A2ACapabilities describes what the agent supports.
@@ -85,6 +87,7 @@ func agentToA2ACard(agent *store.Agent, externalURL string) A2AAgentCard {
 		Provider: A2AProvider{
 			Organization: "Agentic Registry",
 			URL:          externalURL,
+			Status:       "active",
 		},
 		Capabilities:       A2ACapabilities{},
 		DefaultInputModes:  []string{"text"},
@@ -208,6 +211,7 @@ func (h *A2AHandler) GetWellKnownAgentCard(w http.ResponseWriter, r *http.Reques
 		Provider: A2AProvider{
 			Organization: "Agentic Registry",
 			URL:          h.externalURL,
+			Status:       "active",
 		},
 		Capabilities:       A2ACapabilities{},
 		DefaultInputModes:  []string{"text"},
@@ -273,4 +277,36 @@ func (h *A2AHandler) GetA2AIndex(w http.ResponseWriter, r *http.Request) {
 		"agent_cards": cards,
 		"total":       responseTotal,
 	})
+}
+
+// A2ACardProvider adapts the agent store into a notify.AgentCardProvider.
+type A2ACardProvider struct {
+	agents      AgentStoreForAPI
+	externalURL string
+}
+
+// NewA2ACardProvider creates an adapter that builds A2A agent cards from the store.
+func NewA2ACardProvider(agents AgentStoreForAPI, externalURL string) *A2ACardProvider {
+	return &A2ACardProvider{agents: agents, externalURL: externalURL}
+}
+
+// GetAgentCard returns the A2A agent card as a generic map for the publisher.
+func (p *A2ACardProvider) GetAgentCard(ctx context.Context, agentID string) (map[string]interface{}, error) {
+	agent, err := p.agents.GetByID(ctx, agentID)
+	if err != nil {
+		return nil, err
+	}
+
+	card := agentToA2ACard(agent, p.externalURL)
+
+	// Convert to map via JSON round-trip
+	data, err := json.Marshal(card)
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

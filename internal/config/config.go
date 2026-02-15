@@ -21,6 +21,7 @@ type Config struct {
 	WebhookRetries         int
 	WebhookWorkers         int
 	MCPEnabled             bool
+	A2ARegistryURL         string
 }
 
 // Load reads configuration from environment variables.
@@ -85,6 +86,9 @@ func LoadFrom(env map[string]string) (*Config, error) {
 
 	// Bool with default
 	cfg.MCPEnabled = getBoolOrDefault(get, "MCP_ENABLED", true)
+
+	// Optional A2A registry URL (enables push to external registry when set)
+	cfg.A2ARegistryURL = get("A2A_REGISTRY_URL")
 
 	return cfg, nil
 }
