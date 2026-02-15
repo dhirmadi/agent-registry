@@ -20,6 +20,7 @@ import { APIKeysPage } from './pages/APIKeysPage';
 import { UsersPage } from './pages/UsersPage';
 import { AuditLogPage } from './pages/AuditLogPage';
 import { MyAccountPage } from './pages/MyAccountPage';
+import { A2APage } from './pages/A2APage';
 
 export function App() {
   return (
@@ -58,6 +59,7 @@ export function App() {
                 <Route path="api-keys" element={<APIKeysPage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
+                <Route path="a2a" element={<A2APage />} />
                 <Route path="my-account" element={<MyAccountPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -243,6 +243,41 @@ export interface PaginatedResponse<T> {
   limit: number;
 }
 
+// A2A Agent Cards
+export interface A2ASkill {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  examples: string[];
+}
+
+export interface A2AAgentCard {
+  name: string;
+  description: string;
+  url: string;
+  version: string;
+  protocolVersion: string;
+  provider: {
+    organization: string;
+    url: string;
+  };
+  capabilities: {
+    streaming: boolean;
+    pushNotifications: boolean;
+  };
+  defaultInputModes: string[];
+  defaultOutputModes: string[];
+  skills: A2ASkill[];
+  securitySchemes: Record<string, { type: string; scheme: string }>;
+  security: Record<string, string[]>[];
+}
+
+export interface A2AIndexResponse {
+  agent_cards: A2AAgentCard[];
+  total: number;
+}
+
 // Discovery
 export interface DiscoveryResponse {
   agents: Agent[];
