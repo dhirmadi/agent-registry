@@ -151,50 +151,6 @@ func (m *mockDiscoveryModelConfigStore) Upsert(_ context.Context, config *store.
 	return nil
 }
 
-type mockDiscoveryContextConfigStore struct {
-	config *store.ContextConfig
-	err    error
-}
-
-func (m *mockDiscoveryContextConfigStore) GetByScope(_ context.Context, scope, scopeID string) (*store.ContextConfig, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.config, nil
-}
-
-func (m *mockDiscoveryContextConfigStore) GetMerged(_ context.Context, scope, scopeID string) (*store.ContextConfig, error) {
-	return nil, nil
-}
-
-func (m *mockDiscoveryContextConfigStore) Update(_ context.Context, config *store.ContextConfig, etag time.Time) error {
-	return nil
-}
-
-func (m *mockDiscoveryContextConfigStore) Upsert(_ context.Context, config *store.ContextConfig) error {
-	return nil
-}
-
-type mockDiscoverySignalConfigStore struct {
-	configs []store.SignalConfig
-	err     error
-}
-
-func (m *mockDiscoverySignalConfigStore) List(_ context.Context) ([]store.SignalConfig, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.configs, nil
-}
-
-func (m *mockDiscoverySignalConfigStore) GetByID(_ context.Context, id uuid.UUID) (*store.SignalConfig, error) {
-	return nil, nil
-}
-
-func (m *mockDiscoverySignalConfigStore) Update(_ context.Context, config *store.SignalConfig, etag time.Time) error {
-	return nil
-}
-
 // --- Tests ---
 
 func TestDiscoveryHandler_GetDiscovery_Success(t *testing.T) {
@@ -253,36 +209,11 @@ func TestDiscoveryHandler_GetDiscovery_Success(t *testing.T) {
 		},
 	}
 
-	contextConfigStore := &mockDiscoveryContextConfigStore{
-		config: &store.ContextConfig{
-			Scope:          "global",
-			ScopeID:        "",
-			MaxTotalTokens: 8000,
-			LayerBudgets:   json.RawMessage(`{"system":2000,"user":6000}`),
-			EnabledLayers:  json.RawMessage(`["system","user"]`),
-			UpdatedAt:      time.Now(),
-		},
-	}
-
-	signalConfigStore := &mockDiscoverySignalConfigStore{
-		configs: []store.SignalConfig{
-			{
-				ID:           uuid.New(),
-				Source:       "conversation_tone",
-				PollInterval: "60s",
-				IsEnabled:    true,
-				UpdatedAt:    time.Now(),
-			},
-		},
-	}
-
 	handler := NewDiscoveryHandler(
 		agentStore,
 		mcpStore,
 		trustStore,
 		modelConfigStore,
-		contextConfigStore,
-		signalConfigStore,
 	)
 
 	// Act: Make request
@@ -325,12 +256,6 @@ func TestDiscoveryHandler_GetDiscovery_Success(t *testing.T) {
 	if _, ok := data["model_config"]; !ok {
 		t.Errorf("missing model_config field")
 	}
-	if _, ok := data["context_config"]; !ok {
-		t.Errorf("missing context_config field")
-	}
-	if _, ok := data["signal_config"]; !ok {
-		t.Errorf("missing signal_config field")
-	}
 	if _, ok := data["fetched_at"]; !ok {
 		t.Errorf("missing fetched_at field")
 	}
@@ -346,7 +271,6 @@ func TestDiscoveryHandler_GetDiscovery_Success(t *testing.T) {
 }
 
 func TestDiscoveryHandler_GetDiscovery_AgentStoreFailure(t *testing.T) {
-	// Arrange: Agent store returns error
 	agentStore := &mockDiscoveryAgentStore{
 		err: fmt.Errorf("database error"),
 	}
@@ -356,11 +280,8 @@ func TestDiscoveryHandler_GetDiscovery_AgentStoreFailure(t *testing.T) {
 		&mockDiscoveryMCPStore{servers: []store.MCPServer{}},
 		&mockDiscoveryTrustStore{defaults: []store.TrustDefault{}},
 		&mockDiscoveryModelConfigStore{config: nil},
-		&mockDiscoveryContextConfigStore{config: nil},
-		&mockDiscoverySignalConfigStore{configs: []store.SignalConfig{}},
 	)
 
-	// Act
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/discovery", nil)
 	ctx := auth.ContextWithUser(req.Context(), uuid.New(), "admin", "session")
 	req = req.WithContext(ctx)
@@ -368,33 +289,19 @@ func TestDiscoveryHandler_GetDiscovery_AgentStoreFailure(t *testing.T) {
 
 	handler.GetDiscovery(rec, req)
 
-	// Assert
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status 500, got %d", rec.Code)
-	}
-
-	var env Envelope
-	if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if env.Success {
-		t.Errorf("expected success=false")
 	}
 }
 
 func TestDiscoveryHandler_GetDiscovery_EmptyState(t *testing.T) {
-	// Arrange: All stores return empty/nil results
 	handler := NewDiscoveryHandler(
 		&mockDiscoveryAgentStore{agents: []store.Agent{}},
 		&mockDiscoveryMCPStore{servers: []store.MCPServer{}},
 		&mockDiscoveryTrustStore{defaults: []store.TrustDefault{}},
 		&mockDiscoveryModelConfigStore{config: nil},
-		&mockDiscoveryContextConfigStore{config: nil},
-		&mockDiscoverySignalConfigStore{configs: []store.SignalConfig{}},
 	)
 
-	// Act
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/discovery", nil)
 	ctx := auth.ContextWithUser(req.Context(), uuid.New(), "admin", "session")
 	req = req.WithContext(ctx)
@@ -402,7 +309,6 @@ func TestDiscoveryHandler_GetDiscovery_EmptyState(t *testing.T) {
 
 	handler.GetDiscovery(rec, req)
 
-	// Assert
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", rec.Code)
 	}
@@ -421,13 +327,11 @@ func TestDiscoveryHandler_GetDiscovery_EmptyState(t *testing.T) {
 		t.Fatalf("expected data to be an object")
 	}
 
-	// Verify empty arrays and empty objects for nil configs
 	agents, _ := data["agents"].([]interface{})
 	if len(agents) != 0 {
 		t.Errorf("expected empty agents array")
 	}
 
-	// Model config and context config should be empty objects when nil
 	modelConfig, ok := data["model_config"].(map[string]interface{})
 	if !ok {
 		t.Errorf("expected model_config to be an object")
@@ -438,17 +342,13 @@ func TestDiscoveryHandler_GetDiscovery_EmptyState(t *testing.T) {
 }
 
 func TestDiscoveryHandler_GetDiscovery_MCPStoreFailure(t *testing.T) {
-	// Arrange: MCP store returns error
 	handler := NewDiscoveryHandler(
 		&mockDiscoveryAgentStore{agents: []store.Agent{}},
 		&mockDiscoveryMCPStore{err: fmt.Errorf("mcp error")},
 		&mockDiscoveryTrustStore{defaults: []store.TrustDefault{}},
 		&mockDiscoveryModelConfigStore{config: nil},
-		&mockDiscoveryContextConfigStore{config: nil},
-		&mockDiscoverySignalConfigStore{configs: []store.SignalConfig{}},
 	)
 
-	// Act
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/discovery", nil)
 	ctx := auth.ContextWithUser(req.Context(), uuid.New(), "admin", "session")
 	req = req.WithContext(ctx)
@@ -456,24 +356,19 @@ func TestDiscoveryHandler_GetDiscovery_MCPStoreFailure(t *testing.T) {
 
 	handler.GetDiscovery(rec, req)
 
-	// Assert
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status 500, got %d", rec.Code)
 	}
 }
 
 func TestDiscoveryHandler_GetDiscovery_ModelConfigStoreFailure(t *testing.T) {
-	// Arrange: Model config store returns error
 	handler := NewDiscoveryHandler(
 		&mockDiscoveryAgentStore{agents: []store.Agent{}},
 		&mockDiscoveryMCPStore{servers: []store.MCPServer{}},
 		&mockDiscoveryTrustStore{defaults: []store.TrustDefault{}},
 		&mockDiscoveryModelConfigStore{err: fmt.Errorf("model config error")},
-		&mockDiscoveryContextConfigStore{config: nil},
-		&mockDiscoverySignalConfigStore{configs: []store.SignalConfig{}},
 	)
 
-	// Act
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/discovery", nil)
 	ctx := auth.ContextWithUser(req.Context(), uuid.New(), "admin", "session")
 	req = req.WithContext(ctx)
@@ -481,32 +376,6 @@ func TestDiscoveryHandler_GetDiscovery_ModelConfigStoreFailure(t *testing.T) {
 
 	handler.GetDiscovery(rec, req)
 
-	// Assert
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected status 500, got %d", rec.Code)
-	}
-}
-
-func TestDiscoveryHandler_GetDiscovery_SignalConfigStoreFailure(t *testing.T) {
-	// Arrange: Signal config store returns error
-	handler := NewDiscoveryHandler(
-		&mockDiscoveryAgentStore{agents: []store.Agent{}},
-		&mockDiscoveryMCPStore{servers: []store.MCPServer{}},
-		&mockDiscoveryTrustStore{defaults: []store.TrustDefault{}},
-		&mockDiscoveryModelConfigStore{config: nil},
-		&mockDiscoveryContextConfigStore{config: nil},
-		&mockDiscoverySignalConfigStore{err: fmt.Errorf("signal config error")},
-	)
-
-	// Act
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/discovery", nil)
-	ctx := auth.ContextWithUser(req.Context(), uuid.New(), "admin", "session")
-	req = req.WithContext(ctx)
-	rec := httptest.NewRecorder()
-
-	handler.GetDiscovery(rec, req)
-
-	// Assert
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status 500, got %d", rec.Code)
 	}

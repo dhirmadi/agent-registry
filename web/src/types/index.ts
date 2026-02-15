@@ -113,23 +113,6 @@ export interface TrustRule {
   updated_at: string;
 }
 
-// Trigger Rules
-export interface TriggerRule {
-  id: string;
-  workspace_id: string;
-  name: string;
-  event_type: string;
-  condition: Record<string, unknown>;
-  agent_id: string;
-  prompt_template: string;
-  enabled: boolean;
-  rate_limit_per_hour: number;
-  schedule: string;
-  run_as_user_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 // Model Config
 export interface ModelConfig {
   id: string;
@@ -144,26 +127,6 @@ export interface ModelConfig {
   history_token_budget: number;
   max_history_messages: number;
   embedding_model: string;
-  updated_at: string;
-}
-
-// Context Config
-export interface ContextConfig {
-  id: string;
-  scope: 'global' | 'workspace';
-  scope_id: string;
-  max_total_tokens: number;
-  layer_budgets: Record<string, number>;
-  enabled_layers: string[];
-  updated_at: string;
-}
-
-// Signal Config
-export interface SignalConfig {
-  id: string;
-  source: string;
-  poll_interval: string;
-  is_enabled: boolean;
   updated_at: string;
 }
 
@@ -240,7 +203,5 @@ export interface DiscoveryResponse {
   mcp_servers: MCPServer[];
   trust_defaults: TrustDefault[];
   model_config: ModelConfig | Record<string, never>;
-  context_config: ContextConfig | Record<string, never>;
-  signal_config: SignalConfig[];
   fetched_at: string;
 }

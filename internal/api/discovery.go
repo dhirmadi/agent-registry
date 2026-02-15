@@ -10,12 +10,10 @@ import (
 
 // DiscoveryHandler provides the discovery endpoint for fetching all active configuration.
 type DiscoveryHandler struct {
-	agents   AgentStoreForAPI
-	mcp      MCPServerStoreForAPI
-	trust    TrustDefaultStoreForAPI
-	model    ModelConfigStoreForAPI
-	context  ContextConfigStoreForAPI
-	signals  SignalConfigStoreForAPI
+	agents AgentStoreForAPI
+	mcp    MCPServerStoreForAPI
+	trust  TrustDefaultStoreForAPI
+	model  ModelConfigStoreForAPI
 }
 
 // NewDiscoveryHandler creates a new DiscoveryHandler.
@@ -24,16 +22,12 @@ func NewDiscoveryHandler(
 	mcp MCPServerStoreForAPI,
 	trust TrustDefaultStoreForAPI,
 	model ModelConfigStoreForAPI,
-	context ContextConfigStoreForAPI,
-	signals SignalConfigStoreForAPI,
 ) *DiscoveryHandler {
 	return &DiscoveryHandler{
-		agents:  agents,
-		mcp:     mcp,
-		trust:   trust,
-		model:   model,
-		context: context,
-		signals: signals,
+		agents: agents,
+		mcp:    mcp,
+		trust:  trust,
+		model:  model,
 	}
 }
 
@@ -49,8 +43,6 @@ func (h *DiscoveryHandler) GetDiscovery(w http.ResponseWriter, r *http.Request) 
 		mcpServersList    []mcpServerResponse
 		trustDefaultsList interface{}
 		modelConfig       interface{}
-		contextConfig     interface{}
-		signalConfigsList interface{}
 	)
 
 	// Fetch agents (active only, limit 1000)
@@ -108,34 +100,6 @@ func (h *DiscoveryHandler) GetDiscovery(w http.ResponseWriter, r *http.Request) 
 		return nil
 	})
 
-	// Fetch global context config
-	g.Go(func() error {
-		config, err := h.context.GetByScope(ctx, "global", "")
-		if err != nil {
-			return err
-		}
-		if config == nil {
-			contextConfig = map[string]interface{}{}
-		} else {
-			contextConfig = config
-		}
-		return nil
-	})
-
-	// Fetch signal configs
-	g.Go(func() error {
-		configs, err := h.signals.List(ctx)
-		if err != nil {
-			return err
-		}
-		if configs == nil {
-			signalConfigsList = []interface{}{}
-		} else {
-			signalConfigsList = configs
-		}
-		return nil
-	})
-
 	// Wait for all fetches to complete
 	if err := g.Wait(); err != nil {
 		RespondError(w, r, apierrors.Internal("failed to fetch discovery data"))
@@ -148,8 +112,6 @@ func (h *DiscoveryHandler) GetDiscovery(w http.ResponseWriter, r *http.Request) 
 		"mcp_servers":    mcpServersList,
 		"trust_defaults": trustDefaultsList,
 		"model_config":   modelConfig,
-		"context_config": contextConfig,
-		"signal_config":  signalConfigsList,
 		"fetched_at":     time.Now().UTC().Format(time.RFC3339),
 	}
 

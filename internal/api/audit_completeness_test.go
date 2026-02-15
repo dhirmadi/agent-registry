@@ -98,35 +98,6 @@ func (m *mockTrustDefaultStoreForAudit) Update(_ context.Context, _ *store.Trust
 	return nil
 }
 
-// mockTriggerRuleStoreForAudit implements TriggerRuleStoreForAPI.
-type mockTriggerRuleStoreForAudit struct{}
-
-func (m *mockTriggerRuleStoreForAudit) List(_ context.Context, _ uuid.UUID) ([]store.TriggerRule, error) {
-	return nil, nil
-}
-func (m *mockTriggerRuleStoreForAudit) GetByID(_ context.Context, _ uuid.UUID) (*store.TriggerRule, error) {
-	return &store.TriggerRule{ID: uuid.New(), UpdatedAt: time.Now()}, nil
-}
-func (m *mockTriggerRuleStoreForAudit) Create(_ context.Context, rule *store.TriggerRule) error {
-	rule.ID = uuid.New()
-	rule.CreatedAt = time.Now()
-	rule.UpdatedAt = time.Now()
-	return nil
-}
-func (m *mockTriggerRuleStoreForAudit) Update(_ context.Context, _ *store.TriggerRule) error {
-	return nil
-}
-func (m *mockTriggerRuleStoreForAudit) Delete(_ context.Context, _ uuid.UUID) error {
-	return nil
-}
-
-// mockAgentLookupForAudit implements AgentLookupForAPI.
-type mockAgentLookupForAudit struct{}
-
-func (m *mockAgentLookupForAudit) AgentExists(_ context.Context, _ string) (bool, error) {
-	return true, nil
-}
-
 // mockModelConfigStoreForAudit implements ModelConfigStoreForAPI.
 type mockModelConfigStoreForAudit struct{}
 
@@ -140,35 +111,6 @@ func (m *mockModelConfigStoreForAudit) Update(_ context.Context, _ *store.ModelC
 	return nil
 }
 func (m *mockModelConfigStoreForAudit) Upsert(_ context.Context, _ *store.ModelConfig) error {
-	return nil
-}
-
-// mockContextConfigStoreForAudit implements ContextConfigStoreForAPI.
-type mockContextConfigStoreForAudit struct{}
-
-func (m *mockContextConfigStoreForAudit) GetByScope(_ context.Context, _, _ string) (*store.ContextConfig, error) {
-	return &store.ContextConfig{ID: uuid.New(), UpdatedAt: time.Now()}, nil
-}
-func (m *mockContextConfigStoreForAudit) GetMerged(_ context.Context, _, _ string) (*store.ContextConfig, error) {
-	return &store.ContextConfig{ID: uuid.New(), UpdatedAt: time.Now()}, nil
-}
-func (m *mockContextConfigStoreForAudit) Update(_ context.Context, _ *store.ContextConfig, _ time.Time) error {
-	return nil
-}
-func (m *mockContextConfigStoreForAudit) Upsert(_ context.Context, _ *store.ContextConfig) error {
-	return nil
-}
-
-// mockSignalConfigStoreForAudit implements SignalConfigStoreForAPI.
-type mockSignalConfigStoreForAudit struct{}
-
-func (m *mockSignalConfigStoreForAudit) List(_ context.Context) ([]store.SignalConfig, error) {
-	return nil, nil
-}
-func (m *mockSignalConfigStoreForAudit) GetByID(_ context.Context, _ uuid.UUID) (*store.SignalConfig, error) {
-	return &store.SignalConfig{ID: uuid.New(), PollInterval: "5s", UpdatedAt: time.Now()}, nil
-}
-func (m *mockSignalConfigStoreForAudit) Update(_ context.Context, _ *store.SignalConfig, _ time.Time) error {
 	return nil
 }
 
@@ -350,27 +292,6 @@ func TestAuditCompleteness(t *testing.T) {
 			wantMinEntries: 1,
 		},
 		{
-			name:   "POST /api/v1/workspaces/{id}/trigger-rules creates audit for trigger_rule",
-			method: http.MethodPost,
-			path:   "/api/v1/workspaces/" + uuid.New().String() + "/trigger-rules",
-			body: map[string]interface{}{
-				"name":       "Test Trigger",
-				"event_type": "push",
-				"agent_id":   "test_agent",
-			},
-			wantAction:     "trigger_rule_create",
-			wantResType:    "trigger_rule",
-			wantMinEntries: 1,
-		},
-		{
-			name:           "DELETE /api/v1/workspaces/{id}/trigger-rules/{triggerId} creates audit",
-			method:         http.MethodDelete,
-			path:           "/api/v1/workspaces/" + uuid.New().String() + "/trigger-rules/" + uuid.New().String(),
-			wantAction:     "trigger_rule_delete",
-			wantResType:    "trigger_rule",
-			wantMinEntries: 1,
-		},
-		{
 			name:   "PUT /api/v1/model-config creates audit for model_config",
 			method: http.MethodPut,
 			path:   "/api/v1/model-config",
@@ -380,31 +301,6 @@ func TestAuditCompleteness(t *testing.T) {
 			headers:        map[string]string{"If-Match": time.Now().UTC().Format(time.RFC3339Nano)},
 			wantAction:     "model_config_update",
 			wantResType:    "model_config",
-			wantMinEntries: 1,
-		},
-		{
-			name:   "PUT /api/v1/context-config creates audit for context_config",
-			method: http.MethodPut,
-			path:   "/api/v1/context-config",
-			body: map[string]interface{}{
-				"max_total_tokens": 4096,
-			},
-			headers:        map[string]string{"If-Match": time.Now().UTC().Format(time.RFC3339Nano)},
-			wantAction:     "context_config_update",
-			wantResType:    "context_config",
-			wantMinEntries: 1,
-		},
-		{
-			name:   "PUT /api/v1/signal-config/{id} creates audit for signal_config",
-			method: http.MethodPut,
-			path:   "/api/v1/signal-config/" + uuid.New().String(),
-			body: map[string]interface{}{
-				"poll_interval": "30s",
-				"is_enabled":    true,
-			},
-			headers:        map[string]string{"If-Match": time.Now().UTC().Format(time.RFC3339Nano)},
-			wantAction:     "signal_config_update",
-			wantResType:    "signal_config",
 			wantMinEntries: 1,
 		},
 		{
@@ -516,10 +412,7 @@ func TestAuditCompleteness(t *testing.T) {
 				MCPServers:    NewMCPServersHandler(&mockMCPServerStoreForAudit{}, auditStore, nil, nil),
 				TrustRules:    NewTrustRulesHandler(&mockTrustRuleStoreForAudit{}, auditStore, nil),
 				TrustDefaults: NewTrustDefaultsHandler(&mockTrustDefaultStoreForAudit{}, auditStore, nil),
-				TriggerRules:  NewTriggerRulesHandler(&mockTriggerRuleStoreForAudit{}, auditStore, &mockAgentLookupForAudit{}, nil),
 				ModelConfig:   NewModelConfigHandler(&mockModelConfigStoreForAudit{}, auditStore, nil),
-				ContextConfig: NewContextConfigHandler(&mockContextConfigStoreForAudit{}, auditStore, nil),
-				SignalConfig:  NewSignalConfigHandler(&mockSignalConfigStoreForAudit{}, auditStore, nil),
 				Webhooks:      NewWebhooksHandler(&mockWebhookStoreForAudit{}, auditStore),
 				APIKeys:       NewAPIKeysHandler(&mockAPIKeyStoreForAudit{}, auditStore),
 				Users:         NewUsersHandler(userStore, newMockOAuthConnStore(), auditStore),

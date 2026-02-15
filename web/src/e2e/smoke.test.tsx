@@ -88,8 +88,6 @@ function mockDiscoveryResponse() {
     mcp_servers: [],
     trust_defaults: [],
     model_config: {},
-    context_config: {},
-    signal_config: [],
     fetched_at: new Date().toISOString(),
   });
 }

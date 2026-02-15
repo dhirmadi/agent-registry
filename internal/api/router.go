@@ -37,10 +37,7 @@ type RouterConfig struct {
 	MCPServers    *MCPServersHandler
 	TrustRules    *TrustRulesHandler
 	TrustDefaults *TrustDefaultsHandler
-	TriggerRules  *TriggerRulesHandler
 	ModelConfig   *ModelConfigHandler
-	ContextConfig *ContextConfigHandler
-	SignalConfig  *SignalConfigHandler
 	Webhooks      *WebhooksHandler
 	Discovery     *DiscoveryHandler
 	AuditLog      *AuditHandler
@@ -220,24 +217,6 @@ func NewRouter(cfg RouterConfig) chi.Router {
 			})
 		}
 
-		// Context Config (admin only for global)
-		if cfg.ContextConfig != nil {
-			r.Route("/context-config", func(r chi.Router) {
-				r.Use(RequireRole("admin"))
-				r.Get("/", cfg.ContextConfig.GetGlobal)
-				r.Put("/", cfg.ContextConfig.UpdateGlobal)
-			})
-		}
-
-		// Signal Config (admin only)
-		if cfg.SignalConfig != nil {
-			r.Route("/signal-config", func(r chi.Router) {
-				r.Use(RequireRole("admin"))
-				r.Get("/", cfg.SignalConfig.List)
-				r.Put("/{signalId}", cfg.SignalConfig.Update)
-			})
-		}
-
 		// Webhooks (admin only)
 		if cfg.Webhooks != nil {
 			r.Route("/webhooks", func(r chi.Router) {
@@ -290,27 +269,6 @@ func NewRouter(cfg RouterConfig) chi.Router {
 					r.Use(RequireRole("editor", "admin"))
 					r.Get("/", cfg.ModelConfig.GetWorkspace)
 					r.Put("/", cfg.ModelConfig.UpdateWorkspace)
-				})
-			}
-
-			// Context Config (workspace-scoped, editor+)
-			if cfg.ContextConfig != nil {
-				r.Route("/context-config", func(r chi.Router) {
-					r.Use(RequireRole("editor", "admin"))
-					r.Get("/", cfg.ContextConfig.GetWorkspace)
-					r.Put("/", cfg.ContextConfig.UpdateWorkspace)
-				})
-			}
-
-			// Trigger Rules (editor+)
-			if cfg.TriggerRules != nil {
-				r.Route("/trigger-rules", func(r chi.Router) {
-					r.Use(RequireRole("editor", "admin"))
-					r.Get("/", cfg.TriggerRules.List)
-					r.Post("/", cfg.TriggerRules.Create)
-					r.Get("/{triggerId}", cfg.TriggerRules.Get)
-					r.Put("/{triggerId}", cfg.TriggerRules.Update)
-					r.Delete("/{triggerId}", cfg.TriggerRules.Delete)
 				})
 			}
 		})
