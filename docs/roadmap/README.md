@@ -18,7 +18,7 @@ The Agentic Registry is the **most feature-complete self-hosted agent configurat
 | Versioned prompts with activation, rollback, and diff view | Shipped |
 | MCP server config with AES-256-GCM encrypted credentials | Shipped |
 | Trust classification chain (agent overrides, workspace rules, system defaults) | Shipped |
-| Global and workspace-scoped model configuration with inheritance | Shipped |
+| Global and workspace-scoped model configuration with inheritance | Shipped (superseded by [009](009-model-endpoints.md)) |
 | Three auth methods (password, Google OAuth 2.0 PKCE, API keys) | Shipped |
 | OWASP-grade security (CSRF, bcrypt, rate limiting, security headers) | Shipped |
 | Comprehensive audit logging for every mutation | Shipped |
@@ -50,6 +50,7 @@ The AI agent ecosystem is converging on two interoperability protocols — **MCP
 | [005](005-semantic-discovery.md) | **Semantic Discovery** — Natural language search over agent capabilities using pgvector embeddings | Medium | 2–3 weeks | Planned |
 | [006](006-realtime-streaming.md) | **Real-Time Streaming** — SSE for config changes, health status, and progressive discovery | Medium | 2–3 weeks | Planned |
 | [007](007-advanced-observability.md) | **Advanced Observability** — Per-tool usage analytics, cost attribution, health dashboards, alerts | Medium | 2–3 weeks | Planned |
+| [009](009-model-endpoints.md) | **Model Endpoints** — Replace global model config with versioned, addressable model endpoint assets (fixed or multi-model, with rollback) | High | 2–3 weeks | Planned |
 
 ## Phase 8 — Ecosystem
 
@@ -84,12 +85,13 @@ The AI agent ecosystem is converging on two interoperability protocols — **MCP
 └────────┬─────────┘           │ (independent)     │
          │ benefits from       └───────────────────┘
          ▼
-┌──────────────────┐
-│ 008 Packages     │
-│ (benefits from   │
-│  004 for cross-  │
-│  tenant import)  │
-└──────────────────┘
+┌──────────────────┐           ┌───────────────────┐
+│ 008 Packages     │           │ 009 Model         │
+│ (benefits from   │           │ Endpoints         │
+│  004 for cross-  │           │ (independent;     │
+│  tenant import)  │           │  replaces global  │
+└──────────────────┘           │  model config)    │
+                               └───────────────────┘
 ```
 
 Most items are independent and can be parallelized. Recommended critical path: **001 → 003 → 007**, with **002** and **006** built concurrently.
@@ -101,11 +103,11 @@ Most items are independent and can be parallelized. Recommended critical path: *
 | Phase | Items | Effort |
 |---|---|---|
 | Phase 6 — Protocol Interoperability | 001, 002, 003 | 9–12 weeks |
-| Phase 7 — Platform Capabilities | 004, 005, 006, 007 | 10–14 weeks |
+| Phase 7 — Platform Capabilities | 004, 005, 006, 007, 009 | 12–17 weeks |
 | Phase 8 — Ecosystem | 008 | 3 weeks |
-| **Total** | **8 items** | **22–29 weeks** |
+| **Total** | **9 items** | **24–32 weeks** |
 
-With parallelization, the full roadmap can be delivered in approximately **16–20 weeks** (4–5 months).
+With parallelization, the full roadmap can be delivered in approximately **17–22 weeks** (4–5 months).
 
 ---
 
