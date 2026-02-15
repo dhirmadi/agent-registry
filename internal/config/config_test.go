@@ -223,6 +223,69 @@ func searchString(s, substr string) bool {
 	return false
 }
 
+func TestLoad_GatewayDefaults(t *testing.T) {
+	env := map[string]string{
+		"DATABASE_URL":              "postgres://localhost/test",
+		"SESSION_SECRET":            "abc123",
+		"CREDENTIAL_ENCRYPTION_KEY": "12345678901234567890123456789012",
+	}
+
+	cfg, err := LoadFrom(env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.GatewayMode != false {
+		t.Errorf("GatewayMode = %v, want false", cfg.GatewayMode)
+	}
+	if cfg.GatewayTimeoutS != 30 {
+		t.Errorf("GatewayTimeoutS = %d, want 30", cfg.GatewayTimeoutS)
+	}
+	if cfg.GatewayMaxBodySize != 1048576 {
+		t.Errorf("GatewayMaxBodySize = %d, want 1048576", cfg.GatewayMaxBodySize)
+	}
+}
+
+func TestLoad_GatewayCustomValues(t *testing.T) {
+	env := map[string]string{
+		"DATABASE_URL":              "postgres://localhost/test",
+		"SESSION_SECRET":            "abc123",
+		"CREDENTIAL_ENCRYPTION_KEY": "12345678901234567890123456789012",
+		"GATEWAY_MODE":              "true",
+		"GATEWAY_TIMEOUT":           "60",
+		"GATEWAY_MAX_BODY_SIZE":     "2097152",
+	}
+
+	cfg, err := LoadFrom(env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.GatewayMode != true {
+		t.Errorf("GatewayMode = %v, want true", cfg.GatewayMode)
+	}
+	if cfg.GatewayTimeoutS != 60 {
+		t.Errorf("GatewayTimeoutS = %d, want 60", cfg.GatewayTimeoutS)
+	}
+	if cfg.GatewayMaxBodySize != 2097152 {
+		t.Errorf("GatewayMaxBodySize = %d, want 2097152", cfg.GatewayMaxBodySize)
+	}
+}
+
+func TestLoad_GatewayInvalidInt64(t *testing.T) {
+	env := map[string]string{
+		"DATABASE_URL":              "postgres://localhost/test",
+		"SESSION_SECRET":            "abc123",
+		"CREDENTIAL_ENCRYPTION_KEY": "12345678901234567890123456789012",
+		"GATEWAY_MAX_BODY_SIZE":     "not-a-number",
+	}
+
+	_, err := LoadFrom(env)
+	if err == nil {
+		t.Fatal("expected error for invalid int64, got nil")
+	}
+}
+
 func TestLoad_MCPEnabled_Default(t *testing.T) {
 	env := map[string]string{
 		"DATABASE_URL":              "postgres://localhost/test",
