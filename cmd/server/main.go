@@ -21,6 +21,7 @@ import (
 	internalAuth "github.com/agent-smit/agentic-registry/internal/auth"
 	"github.com/agent-smit/agentic-registry/internal/config"
 	"github.com/agent-smit/agentic-registry/internal/db"
+	"github.com/agent-smit/agentic-registry/internal/gateway"
 	"github.com/agent-smit/agentic-registry/internal/notify"
 	"github.com/agent-smit/agentic-registry/internal/ratelimit"
 	"github.com/agent-smit/agentic-registry/internal/seed"
@@ -232,6 +233,25 @@ func run() error {
 		log.Println("MCP protocol enabled")
 	}
 
+	// MCP Gateway handler (opt-in via GATEWAY_MODE)
+	var mcpGatewayHandler *api.MCPGatewayHandler
+	if cfg.GatewayMode {
+		cb := gateway.NewCircuitBreaker()
+		pc := gateway.NewProxyClient(gateway.ProxyClientConfig{
+			Timeout:             time.Duration(cfg.GatewayTimeoutS) * time.Second,
+			MaxIdleConnsPerHost: 10,
+		})
+		tc := gateway.NewTrustClassifier(
+			&trustRuleProviderAdapter{store: trustRuleStore},
+			&trustDefaultProviderAdapter{store: trustDefaultStore},
+			&agentTrustProviderAdapter{store: agentStore},
+		)
+		mcpGatewayHandler = api.NewMCPGatewayHandler(
+			mcpServerStore, auditStore, tc, cb, pc, rateLimiter, encKey,
+		)
+		log.Println("MCP gateway mode enabled")
+	}
+
 	// Set up router
 	router := api.NewRouter(api.RouterConfig{
 		Health:        health,
@@ -249,6 +269,7 @@ func run() error {
 		Discovery:     discoveryHandler,
 		A2A:           a2aHandler,
 		MCP:           mcpHandler,
+		MCPGateway:    mcpGatewayHandler,
 		AuditLog:      auditLogHandler,
 		AuthMW:        authMW,
 		UserLookup:    &userLookupAdapter{store: userStore},
@@ -699,4 +720,68 @@ func (a *subscriptionLoaderAdapter) ListActive(ctx context.Context) ([]notify.Su
 		}
 	}
 	return result, nil
+}
+
+// --- Gateway provider adapters ---
+
+// trustRuleProviderAdapter bridges store.TrustRuleStore to gateway.TrustRuleProvider.
+type trustRuleProviderAdapter struct {
+	store *store.TrustRuleStore
+}
+
+func (a *trustRuleProviderAdapter) List(ctx context.Context, workspaceID uuid.UUID) ([]gateway.TrustRuleRecord, error) {
+	rules, err := a.store.List(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	records := make([]gateway.TrustRuleRecord, len(rules))
+	for i, r := range rules {
+		records[i] = gateway.TrustRuleRecord{ToolPattern: r.ToolPattern, Tier: r.Tier}
+	}
+	return records, nil
+}
+
+// trustDefaultProviderAdapter bridges store.TrustDefaultStore to gateway.TrustDefaultProvider.
+type trustDefaultProviderAdapter struct {
+	store *store.TrustDefaultStore
+}
+
+func (a *trustDefaultProviderAdapter) List(ctx context.Context) ([]gateway.TrustDefaultRecord, error) {
+	defaults, err := a.store.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var records []gateway.TrustDefaultRecord
+	for _, d := range defaults {
+		var patterns []string
+		if len(d.Patterns) > 0 {
+			json.Unmarshal(d.Patterns, &patterns)
+		}
+		for _, p := range patterns {
+			records = append(records, gateway.TrustDefaultRecord{
+				ToolPattern: p, Tier: d.Tier, Priority: d.Priority,
+			})
+		}
+	}
+	return records, nil
+}
+
+// agentTrustProviderAdapter bridges store.AgentStore to gateway.AgentTrustProvider.
+type agentTrustProviderAdapter struct {
+	store *store.AgentStore
+}
+
+func (a *agentTrustProviderAdapter) GetTrustOverrides(ctx context.Context, agentID string) (map[string]string, error) {
+	agent, err := a.store.GetByID(ctx, agentID)
+	if err != nil {
+		return nil, nil // Agent not found = no overrides
+	}
+	if len(agent.TrustOverrides) == 0 {
+		return nil, nil
+	}
+	var overrides map[string]string
+	if err := json.Unmarshal(agent.TrustOverrides, &overrides); err != nil {
+		return nil, nil // Invalid JSON = no overrides
+	}
+	return overrides, nil
 }

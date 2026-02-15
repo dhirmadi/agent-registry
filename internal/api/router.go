@@ -43,6 +43,7 @@ type RouterConfig struct {
 	Discovery     *DiscoveryHandler
 	A2A           *A2AHandler
 	MCP           *MCPHandler
+	MCPGateway    *MCPGatewayHandler
 	AuditLog      *AuditHandler
 	AuthMW        func(http.Handler) http.Handler
 	UserLookup    UserLookup             // For MustChangePassMiddleware (nil = no enforcement)
@@ -85,6 +86,18 @@ func NewRouter(cfg RouterConfig) chi.Router {
 			r.Post("/", cfg.MCP.HandlePost)
 			r.Get("/", cfg.MCP.HandleSSE)
 			r.Delete("/", cfg.MCP.HandleDelete)
+		})
+	}
+
+	// MCP Gateway routes (opt-in via GATEWAY_MODE env var)
+	if cfg.MCPGateway != nil {
+		r.Route("/mcp/v1", func(r chi.Router) {
+			if cfg.AuthMW != nil {
+				r.Use(cfg.AuthMW)
+			}
+			r.Use(RequireRole("viewer", "editor", "admin"))
+			r.Post("/proxy/{serverLabel}/tools/{toolName}", cfg.MCPGateway.ProxyToolCall)
+			r.Get("/tools", cfg.MCPGateway.ListTools)
 		})
 	}
 
