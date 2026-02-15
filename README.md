@@ -49,7 +49,7 @@ AI agent platforms grow fast. Suddenly you have agent definitions, system prompt
 
 ```bash
 # Clone
-git clone https://github.com/agent-smit/agentic-registry.git
+git clone https://github.com/dhirmadi/agent-registry.git
 cd agentic-registry
 
 # Configure
@@ -303,5 +303,5 @@ MIT
 ---
 
 <p align="center">
-  Built for the <a href="https://github.com/agent-smit">Agent Smit</a> platform.
+  Open-source agent configuration management.
 </p>

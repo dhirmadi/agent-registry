@@ -10,7 +10,7 @@ The fastest way to get running. This starts PostgreSQL and the registry together
 
 ```bash
 # Clone the repository
-git clone https://github.com/agent-smit/agentic-registry.git
+git clone https://github.com/dhirmadi/agent-registry.git
 cd agentic-registry
 
 # Configure

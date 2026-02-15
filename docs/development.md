@@ -20,7 +20,7 @@
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/agent-smit/agentic-registry.git
+git clone https://github.com/dhirmadi/agent-registry.git
 cd agentic-registry
 
 # Go dependencies

@@ -50,7 +50,7 @@ Implement A2A Agent Card publishing so that our registered agents are discoverab
   "description": "Project Management Officer agent",
   "url": "https://registry.example.com/api/v1/agents/pmo",
   "provider": {
-    "organization": "Agent Smit",
+    "organization": "Agentic Registry",
     "url": "https://registry.example.com"
   },
   "version": "3",
