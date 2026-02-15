@@ -160,15 +160,15 @@ func TestRedTeam_FixedModelLogicBypass(t *testing.T) {
 		reason     string
 	}{
 		{
-			name: "is_fixed_model=true with allowed_models should still work (models ignored)",
+			name: "is_fixed_model=true with non-empty allowed_models must fail",
 			body: map[string]interface{}{
 				"slug": "fixed-with-allowed", "name": "Fixed With Allowed",
 				"provider": "openai", "endpoint_url": "https://api.openai.com/v1",
 				"is_fixed_model": true, "model_name": "gpt-4o",
 				"allowed_models": []string{"gpt-4o", "gpt-4o-mini"},
 			},
-			wantReject: false,
-			reason:     "fixed model with allowed_models is allowed but allowed_models should be ignored",
+			wantReject: true,
+			reason:     "fixed model must have empty allowed_models",
 		},
 		{
 			name: "is_fixed_model=true without model_name must fail",

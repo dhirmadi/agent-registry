@@ -379,6 +379,35 @@ func TestModelEndpointsHandler_Create(t *testing.T) {
 			wantErr:    true,
 		},
 		{
+			name: "is_fixed_model=true rejects non-empty allowed_models",
+			body: map[string]interface{}{
+				"slug":            "fixed-with-models",
+				"name":            "Fixed With Models",
+				"provider":        "openai",
+				"endpoint_url":    "https://api.openai.com/v1",
+				"is_fixed_model":  true,
+				"model_name":      "gpt-4o",
+				"allowed_models":  []string{"gpt-4o", "gpt-4o-mini"},
+			},
+			role:       "editor",
+			wantStatus: http.StatusBadRequest,
+			wantErr:    true,
+		},
+		{
+			name: "is_fixed_model=true accepts empty allowed_models",
+			body: map[string]interface{}{
+				"slug":           "fixed-no-models",
+				"name":           "Fixed No Models",
+				"provider":       "openai",
+				"endpoint_url":   "https://api.openai.com/v1",
+				"is_fixed_model": true,
+				"model_name":     "gpt-4o",
+				"allowed_models": []string{},
+			},
+			role:       "editor",
+			wantStatus: http.StatusCreated,
+		},
+		{
 			name: "viewer cannot create",
 			body: map[string]interface{}{
 				"slug":         "viewer-test",

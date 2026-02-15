@@ -120,7 +120,21 @@ func (h *ModelEndpointsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		RespondError(w, r, apierrors.Validation("model_name is required when is_fixed_model is true"))
 		return
 	}
-	if !req.IsFixedModel {
+	if req.IsFixedModel {
+		// When is_fixed_model=true, allowed_models must be empty
+		var models []string
+		if req.AllowedModels != nil {
+			if err := json.Unmarshal(req.AllowedModels, &models); err != nil {
+				RespondError(w, r, apierrors.Validation("allowed_models must be a string array"))
+				return
+			}
+		}
+		if len(models) > 0 {
+			RespondError(w, r, apierrors.Validation("allowed_models must be empty when is_fixed_model is true"))
+			return
+		}
+	} else {
+		// When is_fixed_model=false, allowed_models is required and non-empty
 		var models []string
 		if req.AllowedModels != nil {
 			if err := json.Unmarshal(req.AllowedModels, &models); err != nil {
@@ -605,7 +619,21 @@ func (h *ModelEndpointsHandler) CreateForWorkspace(w http.ResponseWriter, r *htt
 		RespondError(w, r, apierrors.Validation("model_name is required when is_fixed_model is true"))
 		return
 	}
-	if !req.IsFixedModel {
+	if req.IsFixedModel {
+		// When is_fixed_model=true, allowed_models must be empty
+		var models []string
+		if req.AllowedModels != nil {
+			if err := json.Unmarshal(req.AllowedModels, &models); err != nil {
+				RespondError(w, r, apierrors.Validation("allowed_models must be a string array"))
+				return
+			}
+		}
+		if len(models) > 0 {
+			RespondError(w, r, apierrors.Validation("allowed_models must be empty when is_fixed_model is true"))
+			return
+		}
+	} else {
+		// When is_fixed_model=false, allowed_models is required and non-empty
 		var models []string
 		if req.AllowedModels != nil {
 			if err := json.Unmarshal(req.AllowedModels, &models); err != nil {
