@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -549,9 +548,17 @@ func (h *AgentsHandler) dispatchEvent(r *http.Request, eventType, resourceType, 
 }
 
 func isConflictError(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "CONFLICT")
+	if err == nil {
+		return false
+	}
+	apiErr, ok := err.(*apierrors.APIError)
+	return ok && apiErr.Code == "CONFLICT"
 }
 
 func isNotFoundError(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "NOT_FOUND")
+	if err == nil {
+		return false
+	}
+	apiErr, ok := err.(*apierrors.APIError)
+	return ok && apiErr.Code == "NOT_FOUND"
 }
