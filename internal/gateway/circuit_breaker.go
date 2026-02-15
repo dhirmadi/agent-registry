@@ -5,72 +5,62 @@ import (
 	"time"
 )
 
-// CircuitState represents the state of a circuit breaker.
+// CircuitState represents the current state of a circuit breaker.
 type CircuitState int
 
 const (
-	CircuitClosed   CircuitState = iota // Allow all requests
-	CircuitOpen                         // Reject all requests
-	CircuitHalfOpen                     // Allow one probe request
+	CircuitClosed   CircuitState = iota // Healthy, allowing requests
+	CircuitOpen                         // Tripped, rejecting requests
+	CircuitHalfOpen                     // Allowing a single probe request
 )
 
-// CircuitBreakerConfig from MCP server circuit_breaker JSON.
+// CircuitBreakerConfig holds per-server circuit breaker settings.
 type CircuitBreakerConfig struct {
-	FailThreshold int           // Failures before opening (1-100)
-	OpenDuration  time.Duration // How long to stay open (1-3600s)
+	FailThreshold int           // Failures before opening
+	OpenDuration  time.Duration // How long to stay open before half-open probe
 }
 
-// circuitState tracks per-label circuit state.
-type circuitState struct {
-	state        CircuitState
-	failures     int
-	lastFailTime time.Time
-	openedAt     time.Time
+type circuitEntry struct {
+	state         CircuitState
+	failures      int
+	openedAt      time.Time
+	probeInFlight bool
 }
 
-// CircuitBreaker manages circuit breaker state for multiple labels.
+// CircuitBreaker tracks per-label circuit state.
 type CircuitBreaker struct {
-	mu       sync.RWMutex
-	circuits map[string]*circuitState
+	mu      sync.Mutex
+	entries map[string]*circuitEntry
 }
 
-// NewCircuitBreaker creates a new circuit breaker manager.
+// NewCircuitBreaker creates a new circuit breaker.
 func NewCircuitBreaker() *CircuitBreaker {
 	return &CircuitBreaker{
-		circuits: make(map[string]*circuitState),
+		entries: make(map[string]*circuitEntry),
 	}
 }
 
-// Allow checks if a request should be allowed for the given label.
-func (cb *CircuitBreaker) Allow(label string, config CircuitBreakerConfig) bool {
+// Allow returns true if the label's circuit permits a request.
+func (cb *CircuitBreaker) Allow(label string, cfg CircuitBreakerConfig) bool {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 
-	circuit, exists := cb.circuits[label]
-	if !exists {
-		circuit = &circuitState{state: CircuitClosed}
-		cb.circuits[label] = circuit
-	}
+	e := cb.getOrCreate(label)
 
-	now := time.Now()
-
-	switch circuit.state {
+	switch e.state {
 	case CircuitClosed:
 		return true
-
 	case CircuitOpen:
-		if now.Sub(circuit.openedAt) >= config.OpenDuration {
-			circuit.state = CircuitHalfOpen
-			return true // Allow probe
+		if time.Since(e.openedAt) >= cfg.OpenDuration {
+			e.state = CircuitHalfOpen
+			e.probeInFlight = true
+			return true
 		}
 		return false
-
 	case CircuitHalfOpen:
 		return false
-
-	default:
-		return false
 	}
+	return false
 }
 
 // RecordSuccess records a successful request.
@@ -78,50 +68,37 @@ func (cb *CircuitBreaker) RecordSuccess(label string) {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 
-	circuit, exists := cb.circuits[label]
-	if !exists {
-		return
-	}
-
-	circuit.failures = 0
-	circuit.state = CircuitClosed
+	e := cb.getOrCreate(label)
+	e.failures = 0
+	e.state = CircuitClosed
+	e.probeInFlight = false
 }
 
-// RecordFailure records a failed request.
-func (cb *CircuitBreaker) RecordFailure(label string, config CircuitBreakerConfig) {
+// RecordFailure records a failed request and may open the circuit.
+func (cb *CircuitBreaker) RecordFailure(label string, cfg CircuitBreakerConfig) {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 
-	circuit, exists := cb.circuits[label]
-	if !exists {
-		circuit = &circuitState{state: CircuitClosed}
-		cb.circuits[label] = circuit
-	}
+	e := cb.getOrCreate(label)
+	e.failures++
 
-	now := time.Now()
-	circuit.failures++
-	circuit.lastFailTime = now
-
-	if circuit.failures >= config.FailThreshold {
-		circuit.state = CircuitOpen
-		circuit.openedAt = now
-	} else if circuit.state == CircuitHalfOpen {
-		circuit.state = CircuitOpen
-		circuit.openedAt = now
+	if e.state == CircuitHalfOpen || e.failures >= cfg.FailThreshold {
+		e.state = CircuitOpen
+		e.openedAt = time.Now()
+		e.probeInFlight = false
 	}
 }
 
-// State returns the current state for a label.
+// State returns the current circuit state for a label.
 func (cb *CircuitBreaker) State(label string) CircuitState {
-	cb.mu.RLock()
-	defer cb.mu.RUnlock()
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 
-	circuit, exists := cb.circuits[label]
-	if !exists {
+	e, ok := cb.entries[label]
+	if !ok {
 		return CircuitClosed
 	}
-
-	return circuit.state
+	return e.state
 }
 
 // Reset clears all circuit state.
@@ -129,5 +106,14 @@ func (cb *CircuitBreaker) Reset() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 
-	cb.circuits = make(map[string]*circuitState)
+	cb.entries = make(map[string]*circuitEntry)
+}
+
+func (cb *CircuitBreaker) getOrCreate(label string) *circuitEntry {
+	e, ok := cb.entries[label]
+	if !ok {
+		e = &circuitEntry{state: CircuitClosed}
+		cb.entries[label] = e
+	}
+	return e
 }
