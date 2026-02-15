@@ -30,6 +30,7 @@ func TestProxyClient_SuccessfulProxy(t *testing.T) {
 	pc := NewProxyClient(ProxyClientConfig{
 		Timeout:             5 * time.Second,
 		MaxIdleConnsPerHost: 2,
+		AllowPrivateIPs:     true, // Allow localhost for testing
 	})
 
 	resp, err := pc.Forward(context.Background(), ProxyRequest{
@@ -62,7 +63,7 @@ func TestProxyClient_BearerAuth(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	_, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: srv.URL,
 		ToolName:       "test",
@@ -88,7 +89,7 @@ func TestProxyClient_BasicAuth(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	_, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: srv.URL,
 		ToolName:       "test",
@@ -114,7 +115,7 @@ func TestProxyClient_NoAuth(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	_, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: srv.URL,
 		ToolName:       "test",
@@ -136,7 +137,7 @@ func TestProxyClient_UnsupportedAuthType(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	_, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: srv.URL,
 		ToolName:       "test",
@@ -159,7 +160,7 @@ func TestProxyClient_Timeout(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 50 * time.Millisecond, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 50 * time.Millisecond, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	_, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: srv.URL,
 		ToolName:       "slow",
@@ -179,7 +180,7 @@ func TestProxyClient_ContextCancellation(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 10 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 10 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
@@ -214,7 +215,7 @@ func TestProxyClient_Non200Status(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2})
+			pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 			resp, err := pc.Forward(context.Background(), ProxyRequest{
 				ServerEndpoint: srv.URL,
 				ToolName:       "test",
@@ -239,7 +240,7 @@ func TestProxyClient_MalformedResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	resp, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: srv.URL,
 		ToolName:       "test",
@@ -279,7 +280,7 @@ func TestProxyClient_JSONRPCFormat(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	_, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: srv.URL,
 		ToolName:       "my_tool",
@@ -327,7 +328,7 @@ func TestProxyClient_LatencyMeasurement(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	resp, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: srv.URL,
 		ToolName:       "test",
@@ -356,7 +357,7 @@ func TestProxyClient_RequestResponseSizes(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 5 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	resp, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: srv.URL,
 		ToolName:       "test",
@@ -375,7 +376,7 @@ func TestProxyClient_RequestResponseSizes(t *testing.T) {
 }
 
 func TestProxyClient_ConnectionRefused(t *testing.T) {
-	pc := NewProxyClient(ProxyClientConfig{Timeout: 2 * time.Second, MaxIdleConnsPerHost: 2})
+	pc := NewProxyClient(ProxyClientConfig{Timeout: 2 * time.Second, MaxIdleConnsPerHost: 2, AllowPrivateIPs: true})
 	_, err := pc.Forward(context.Background(), ProxyRequest{
 		ServerEndpoint: "http://127.0.0.1:1", // port 1 is almost certainly not listening
 		ToolName:       "test",
