@@ -81,8 +81,8 @@ export function MyAccountPage() {
     setKeysLoading(true);
     setKeysError(null);
     try {
-      const data = await api.get<{ items: APIKey[]; total: number }>('/api/v1/api-keys?mine=true');
-      setApiKeys(data.items);
+      const data = await api.get<{ keys: APIKey[]; total: number }>('/api/v1/api-keys?mine=true');
+      setApiKeys(data.keys ?? []);
     } catch (err) {
       setKeysError(err instanceof Error ? err.message : 'Failed to load API keys');
     } finally {
@@ -144,7 +144,7 @@ export function MyAccountPage() {
         name: newKeyName,
         scopes: scopes.length > 0 ? scopes : ['read'],
       });
-      setCreatedKey(result.raw_key);
+      setCreatedKey(result.key);
       addToast('success', 'API key created');
       await fetchApiKeys();
     } catch (err) {

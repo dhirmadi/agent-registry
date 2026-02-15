@@ -179,7 +179,7 @@ export function TrustPage() {
           {canWrite && (
             <Toolbar>
               <ToolbarContent>
-                <ToolbarItem>
+                <ToolbarItem align={{ default: 'alignRight' }}>
                   <Button variant="primary" onClick={() => setCreateDefaultOpen(true)} data-testid="add-default-btn">
                     Add Default
                   </Button>
@@ -248,7 +248,7 @@ export function TrustPage() {
             </Button>
           </ToolbarItem>
           {canWrite && workspaceId && (
-            <ToolbarItem>
+            <ToolbarItem align={{ default: 'alignRight' }}>
               <Button variant="primary" onClick={() => setCreateRuleOpen(true)} data-testid="add-rule-btn">
                 Add Rule
               </Button>

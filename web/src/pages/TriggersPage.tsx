@@ -180,7 +180,7 @@ export function TriggersPage() {
             </Button>
           </ToolbarItem>
           {canWrite && workspaceId && (
-            <ToolbarItem>
+            <ToolbarItem align={{ default: 'alignRight' }}>
               <Button variant="primary" onClick={() => setCreateOpen(true)} data-testid="create-trigger-btn">
                 Create Trigger
               </Button>

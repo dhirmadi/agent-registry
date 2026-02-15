@@ -190,8 +190,12 @@ export interface APIKey {
 }
 
 export interface APIKeyCreateResponse {
-  key: APIKey;
-  raw_key: string;
+  key: string;
+  id: string;
+  name: string;
+  scopes: string[];
+  key_prefix: string;
+  created_at: string;
 }
 
 // Users (admin)

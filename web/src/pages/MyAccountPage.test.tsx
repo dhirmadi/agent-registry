@@ -41,7 +41,7 @@ function mockFetchApiKeys(keys: APIKey[]) {
     status: 200,
     json: async () => ({
       success: true,
-      data: { items: keys, total: keys.length },
+      data: { keys, total: keys.length },
       error: null,
       meta: { timestamp: new Date().toISOString(), request_id: 'req-1' },
     }),
@@ -214,7 +214,7 @@ describe('MyAccountPage', () => {
       status: 201,
       json: async () => ({
         success: true,
-        data: { key: mockApiKey, raw_key: 'ar_secret_abc123' },
+        data: { key: 'ar_secret_abc123', id: 'key-new', name: 'New Key', scopes: ['read'], key_prefix: 'ar_secr', created_at: new Date().toISOString() },
         error: null,
         meta: { timestamp: new Date().toISOString(), request_id: 'req-2' },
       }),

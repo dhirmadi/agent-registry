@@ -25,6 +25,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+    image: localhost/agentic-registry:latest
     restart: unless-stopped
     depends_on:
       db:

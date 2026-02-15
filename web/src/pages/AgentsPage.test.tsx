@@ -70,7 +70,7 @@ function mockFetchAgents(agents: Agent[], total: number) {
     status: 200,
     json: async () => ({
       success: true,
-      data: { items: agents, total },
+      data: { agents, total },
       error: null,
       meta: { timestamp: new Date().toISOString(), request_id: 'req-1' },
     }),

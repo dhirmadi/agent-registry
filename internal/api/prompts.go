@@ -89,6 +89,9 @@ func (h *PromptsHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if prompts == nil {
+		prompts = []store.Prompt{}
+	}
 	RespondJSON(w, r, http.StatusOK, map[string]interface{}{
 		"prompts": prompts,
 		"total":   total,

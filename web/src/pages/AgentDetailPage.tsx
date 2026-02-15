@@ -32,7 +32,12 @@ import type { TimelineVersion } from '../components/VersionTimeline';
 import type { Agent, AgentVersion, Prompt } from '../types';
 
 interface VersionsResponse {
-  items: AgentVersion[];
+  versions: AgentVersion[];
+  total: number;
+}
+
+interface PromptsResponse {
+  prompts: Prompt[] | null;
   total: number;
 }
 
@@ -65,11 +70,11 @@ export function AgentDetailPage() {
       const [agentData, versionsData, promptsData] = await Promise.all([
         api.get<Agent>(`/api/v1/agents/${agentId}`),
         api.get<VersionsResponse>(`/api/v1/agents/${agentId}/versions`),
-        api.get<Prompt[]>(`/api/v1/agents/${agentId}/prompts`),
+        api.get<PromptsResponse>(`/api/v1/agents/${agentId}/prompts`),
       ]);
       setAgent(agentData);
-      setVersions(versionsData.items);
-      setPrompts(promptsData);
+      setVersions(versionsData.versions ?? []);
+      setPrompts(promptsData.prompts ?? []);
       // Populate form state
       setEditName(agentData.name);
       setEditDesc(agentData.description);
@@ -323,6 +328,7 @@ export function AgentDetailPage() {
         <Tab eventKey={3} title={<TabTitleText>System Prompt</TabTitleText>}>
           <TabContentBody style={{ paddingTop: '1rem' }}>
             <TextArea
+              id="edit-system-prompt"
               value={editSystemPrompt}
               onChange={(_event, val) => setEditSystemPrompt(val)}
               rows={20}

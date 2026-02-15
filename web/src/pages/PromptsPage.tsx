@@ -63,7 +63,7 @@ export function PromptsPage() {
       try {
         const data = await api.get<AgentsResponse>('/api/v1/agents?active_only=false');
         if (!cancelled) {
-          setAgents(data.agents);
+          setAgents(data.agents ?? []);
         }
       } catch (err) {
         if (!cancelled) {
@@ -87,7 +87,7 @@ export function PromptsPage() {
       const data = await api.get<PromptsResponse>(
         `/api/v1/agents/${agentId}/prompts?limit=100`,
       );
-      setPrompts(data.prompts);
+      setPrompts(data.prompts ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load prompts');
       setPrompts([]);
@@ -177,7 +177,7 @@ export function PromptsPage() {
             </FormSelect>
           </ToolbarItem>
           {selectedAgentId && (
-            <ToolbarItem>
+            <ToolbarItem align={{ default: 'alignRight' }}>
               <Button
                 variant="primary"
                 data-testid="create-prompt-btn"

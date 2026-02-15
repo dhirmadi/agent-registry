@@ -141,37 +141,25 @@ export function MCPServersPage() {
     }
   }, [deleteTarget, fetchServers]);
 
-  if (loading) {
-    return (
-      <div data-testid="mcp-loading" style={{ textAlign: 'center', padding: '3rem' }}>
-        <Spinner aria-label="Loading MCP servers" />
-      </div>
-    );
-  }
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div data-testid="mcp-loading" style={{ textAlign: 'center', padding: '3rem' }}>
+          <Spinner aria-label="Loading MCP servers" />
+        </div>
+      );
+    }
 
-  if (error && servers.length === 0) {
-    return (
-      <Alert variant="danger" title="Error" data-testid="mcp-error">
-        {error}
-      </Alert>
-    );
-  }
+    if (error && servers.length === 0) {
+      return (
+        <Alert variant="danger" title="Error" data-testid="mcp-error">
+          {error}
+        </Alert>
+      );
+    }
 
-  if (!loading && servers.length === 0 && !error) {
-    return (
-      <div>
-        <Title headingLevel="h1" style={{ marginBottom: '1.5rem' }}>
-          MCP Servers
-        </Title>
-        <Toolbar>
-          <ToolbarContent>
-            <ToolbarItem>
-              <Button variant="primary" data-testid="create-server-btn" onClick={openCreateModal}>
-                Add MCP Server
-              </Button>
-            </ToolbarItem>
-          </ToolbarContent>
-        </Toolbar>
+    if (servers.length === 0) {
+      return (
         <EmptyState data-testid="mcp-empty">
           <EmptyStateHeader
             titleText="No MCP servers configured"
@@ -181,10 +169,87 @@ export function MCPServersPage() {
           <EmptyStateBody>
             Add an MCP server to enable tool integrations for your agents.
           </EmptyStateBody>
+          <Button variant="primary" data-testid="create-server-btn" onClick={openCreateModal} style={{ marginTop: '1rem' }}>
+            Add MCP Server
+          </Button>
         </EmptyState>
-      </div>
+      );
+    }
+
+    return (
+      <>
+        <Toolbar>
+          <ToolbarContent>
+            <ToolbarItem align={{ default: 'alignRight' }}>
+              <Button variant="primary" data-testid="create-server-btn" onClick={openCreateModal}>
+                Add MCP Server
+              </Button>
+            </ToolbarItem>
+          </ToolbarContent>
+        </Toolbar>
+
+        {error && (
+          <Alert
+            variant="danger"
+            title="Error"
+            data-testid="mcp-error"
+            style={{ marginBottom: '1rem' }}
+          >
+            {error}
+          </Alert>
+        )}
+
+        <Table aria-label="MCP Servers table" data-testid="mcp-table">
+          <Thead>
+            <Tr>
+              <Th>Label</Th>
+              <Th>Endpoint</Th>
+              <Th>Auth Type</Th>
+              <Th>Discovery Interval</Th>
+              <Th>Enabled</Th>
+              <Th>Actions</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {servers.map((server) => (
+              <Tr key={server.id} data-testid={`server-row-${server.id}`}>
+                <Td>{server.label}</Td>
+                <Td>{server.endpoint}</Td>
+                <Td>{server.auth_type}</Td>
+                <Td>{server.discovery_interval}</Td>
+                <Td>
+                  {server.is_enabled ? (
+                    <Label color="green">Enabled</Label>
+                  ) : (
+                    <Label color="grey">Disabled</Label>
+                  )}
+                </Td>
+                <Td>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    data-testid="edit-server-btn"
+                    onClick={() => openEditModal(server)}
+                    style={{ marginRight: '0.5rem' }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    data-testid="delete-server-btn"
+                    onClick={() => setDeleteTarget(server)}
+                  >
+                    Delete
+                  </Button>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </>
     );
-  }
+  };
 
   return (
     <div>
@@ -192,75 +257,7 @@ export function MCPServersPage() {
         MCP Servers
       </Title>
 
-      <Toolbar>
-        <ToolbarContent>
-          <ToolbarItem>
-            <Button variant="primary" data-testid="create-server-btn" onClick={openCreateModal}>
-              Add MCP Server
-            </Button>
-          </ToolbarItem>
-        </ToolbarContent>
-      </Toolbar>
-
-      {error && (
-        <Alert
-          variant="danger"
-          title="Error"
-          data-testid="mcp-error"
-          style={{ marginBottom: '1rem' }}
-        >
-          {error}
-        </Alert>
-      )}
-
-      <Table aria-label="MCP Servers table" data-testid="mcp-table">
-        <Thead>
-          <Tr>
-            <Th>Label</Th>
-            <Th>Endpoint</Th>
-            <Th>Auth Type</Th>
-            <Th>Discovery Interval</Th>
-            <Th>Enabled</Th>
-            <Th>Actions</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {servers.map((server) => (
-            <Tr key={server.id} data-testid={`server-row-${server.id}`}>
-              <Td>{server.label}</Td>
-              <Td>{server.endpoint}</Td>
-              <Td>{server.auth_type}</Td>
-              <Td>{server.discovery_interval}</Td>
-              <Td>
-                {server.is_enabled ? (
-                  <Label color="green">Enabled</Label>
-                ) : (
-                  <Label color="grey">Disabled</Label>
-                )}
-              </Td>
-              <Td>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  data-testid="edit-server-btn"
-                  onClick={() => openEditModal(server)}
-                  style={{ marginRight: '0.5rem' }}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  data-testid="delete-server-btn"
-                  onClick={() => setDeleteTarget(server)}
-                >
-                  Delete
-                </Button>
-              </Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
+      {renderContent()}
 
       {/* Create/Edit Modal */}
       <Modal

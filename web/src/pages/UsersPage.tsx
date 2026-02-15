@@ -160,7 +160,7 @@ export function UsersPage() {
 
       <Toolbar>
         <ToolbarContent>
-          <ToolbarItem>
+          <ToolbarItem align={{ default: 'alignRight' }}>
             <Button variant="primary" onClick={() => setCreateOpen(true)}>
               Create User
             </Button>

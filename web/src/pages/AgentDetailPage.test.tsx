@@ -122,7 +122,7 @@ function mockFetchVersions() {
     status: 200,
     json: async () => ({
       success: true,
-      data: { items: mockVersions, total: 2 },
+      data: { versions: mockVersions, total: 2 },
       error: null,
       meta: { timestamp: new Date().toISOString(), request_id: 'req-2' },
     }),
@@ -135,7 +135,7 @@ function mockFetchPrompts() {
     status: 200,
     json: async () => ({
       success: true,
-      data: mockPrompts,
+      data: { prompts: mockPrompts, total: mockPrompts.length },
       error: null,
       meta: { timestamp: new Date().toISOString(), request_id: 'req-5' },
     }),

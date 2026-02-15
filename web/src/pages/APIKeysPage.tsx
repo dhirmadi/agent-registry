@@ -25,7 +25,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { APIKey, APIKeyCreateResponse } from '../types';
 
 interface APIKeysListResponse {
-  items: APIKey[];
+  keys: APIKey[];
   total: number;
 }
 
@@ -56,7 +56,7 @@ export function APIKeysPage() {
     setError(null);
     try {
       const data = await api.get<APIKeysListResponse>('/api/v1/api-keys');
-      setKeys(data.items ?? []);
+      setKeys(data.keys ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load API keys');
     } finally {
@@ -83,7 +83,7 @@ export function APIKeysPage() {
       setCreateName('');
       setCreateScopes([]);
       setCreateExpiresAt('');
-      setCreatedRawKey(data.raw_key);
+      setCreatedRawKey(data.key);
       setRawKeyModalOpen(true);
       await fetchKeys();
     } catch (err) {
@@ -132,7 +132,7 @@ export function APIKeysPage() {
       <Toolbar>
         <ToolbarContent>
           {canWrite && (
-            <ToolbarItem>
+            <ToolbarItem align={{ default: 'alignRight' }}>
               <Button variant="primary" onClick={() => setCreateOpen(true)}>
                 Create API Key
               </Button>
@@ -163,14 +163,14 @@ export function APIKeysPage() {
                 <Td dataLabel="Name">{k.name}</Td>
                 <Td dataLabel="Prefix">{k.key_prefix}</Td>
                 <Td dataLabel="Scopes">
-                  {k.scopes.map((s) => (
+                  {(k.scopes ?? []).map((s) => (
                     <Label key={s} style={{ marginRight: '0.25rem' }}>
                       {s}
                     </Label>
                   ))}
                 </Td>
                 <Td dataLabel="Status">
-                  <StatusBadge status={k.is_active ? 'Active' : 'Inactive'} />
+                  <StatusBadge status={k.is_active !== false ? 'Active' : 'Inactive'} />
                 </Td>
                 <Td dataLabel="Created">
                   {new Date(k.created_at).toLocaleDateString()}

@@ -33,7 +33,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Agent } from '../types';
 
 interface AgentsListResponse {
-  items: Agent[];
+  agents: Agent[];
   total: number;
 }
 
@@ -63,7 +63,7 @@ export function AgentsPage() {
     setError(null);
     try {
       const data = await api.get<AgentsListResponse>('/api/v1/agents?active_only=false');
-      setAgents(data.items ?? []);
+      setAgents(data.agents ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load agents');
     } finally {

@@ -57,6 +57,7 @@ type apiKeyListItem struct {
 	Name       string     `json:"name"`
 	KeyPrefix  string     `json:"key_prefix"`
 	Scopes     []string   `json:"scopes"`
+	IsActive   bool       `json:"is_active"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	CreatedAt  time.Time  `json:"created_at"`
 	ExpiresAt  *time.Time `json:"expires_at"`
@@ -143,6 +144,7 @@ func (h *APIKeysHandler) List(w http.ResponseWriter, r *http.Request) {
 			Name:       k.Name,
 			KeyPrefix:  k.KeyPrefix,
 			Scopes:     k.Scopes,
+			IsActive:   k.IsActive,
 			LastUsedAt: k.LastUsedAt,
 			CreatedAt:  k.CreatedAt,
 			ExpiresAt:  k.ExpiresAt,

@@ -153,7 +153,7 @@ export function WebhooksPage() {
       <Toolbar>
         <ToolbarContent>
           {canWrite && (
-            <ToolbarItem>
+            <ToolbarItem align={{ default: 'alignRight' }}>
               <Button variant="primary" onClick={() => setCreateOpen(true)}>
                 Create Webhook
               </Button>

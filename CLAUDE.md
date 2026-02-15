@@ -3,6 +3,11 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ---
+# Token Optimization Rules
+- Output <300 tokens unless specified.
+- Use JSON for plans: {"steps": [...]}.
+- Self-check: "Am I verbose? Summarize."
+
 
 ## WHY — Purpose and Context
 

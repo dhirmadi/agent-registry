@@ -45,7 +45,7 @@ function mockFetchKeys(keys: APIKey[], total: number) {
     status: 200,
     json: async () => ({
       success: true,
-      data: { items: keys, total },
+      data: { keys, total },
       error: null,
       meta: { timestamp: new Date().toISOString(), request_id: 'req-1' },
     }),
@@ -122,15 +122,19 @@ describe('APIKeysPage', () => {
     await ue.type(document.getElementById('apikey-name')!, 'Test Key');
     await ue.click(screen.getByLabelText('read'));
 
-    // Mock POST response with raw_key
+    // Mock POST response - backend returns flat object with plaintext key in "key" field
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 201,
       json: async () => ({
         success: true,
         data: {
-          key: { ...mockKey1, id: 'key-3', name: 'Test Key' },
-          raw_key: 'ar_test_abcdef123456',
+          key: 'ar_test_abcdef123456',
+          id: 'key-3',
+          name: 'Test Key',
+          scopes: ['read'],
+          key_prefix: 'ar_test_',
+          created_at: new Date().toISOString(),
         },
         error: null,
         meta: { timestamp: new Date().toISOString(), request_id: 'req-3' },

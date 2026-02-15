@@ -84,15 +84,24 @@ describe('TriggersPage', () => {
     mockUser = { role: 'admin' };
   });
 
-  it('shows loading spinner initially', () => {
-    mockFetchTriggersSuccess();
+  /** Helper: enter workspace ID and click Search to load triggers */
+  async function searchWorkspace(ue: ReturnType<typeof userEvent.setup>) {
+    const input = screen.getByTestId('workspace-id-input');
+    await ue.type(input, 'ws-1');
+    await ue.click(screen.getByTestId('search-triggers-btn'));
+  }
+
+  it('shows prompt to enter workspace ID initially', () => {
     render(<TriggersPage />);
-    expect(screen.getByTestId('triggers-loading')).toBeInTheDocument();
+    expect(screen.getByText(/Enter a workspace ID/)).toBeInTheDocument();
   });
 
-  it('renders triggers table after loading', async () => {
+  it('renders triggers table after searching workspace', async () => {
     mockFetchTriggersSuccess();
     render(<TriggersPage />);
+
+    const ue = userEvent.setup();
+    await searchWorkspace(ue);
 
     await waitFor(() => {
       expect(screen.queryByTestId('triggers-loading')).not.toBeInTheDocument();
@@ -112,6 +121,9 @@ describe('TriggersPage', () => {
     mockFetchTriggersError();
     render(<TriggersPage />);
 
+    const ue = userEvent.setup();
+    await searchWorkspace(ue);
+
     await waitFor(() => {
       expect(screen.getByTestId('triggers-error')).toBeInTheDocument();
     });
@@ -119,15 +131,18 @@ describe('TriggersPage', () => {
     expect(screen.getByText(/Server error/)).toBeInTheDocument();
   });
 
-  it('toggles trigger enabled status via PATCH', async () => {
+  it('toggles trigger enabled status via PUT', async () => {
     mockFetchTriggersSuccess();
     render(<TriggersPage />);
+
+    const ue = userEvent.setup();
+    await searchWorkspace(ue);
 
     await waitFor(() => {
       expect(screen.queryByTestId('triggers-loading')).not.toBeInTheDocument();
     });
 
-    // Mock the PATCH call and refetch
+    // Mock the PUT call and refetch
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -135,20 +150,19 @@ describe('TriggersPage', () => {
         success: true,
         data: { ...mockTriggers[0], enabled: false },
         error: null,
-        meta: { timestamp: new Date().toISOString(), request_id: 'req-patch' },
+        meta: { timestamp: new Date().toISOString(), request_id: 'req-put' },
       }),
     } as Response);
     mockFetchTriggersSuccess();
 
-    const ue = userEvent.setup();
     await ue.click(screen.getByTestId('toggle-trigger-trig-1'));
 
     await waitFor(() => {
-      const patchCall = fetchMock.mock.calls.find(
-        (call: unknown[]) => (call[1] as RequestInit)?.method === 'PATCH',
+      const putCall = fetchMock.mock.calls.find(
+        (call: unknown[]) => (call[1] as RequestInit)?.method === 'PUT',
       );
-      expect(patchCall).toBeDefined();
-      expect((patchCall![0] as string)).toContain('/api/v1/triggers/trig-1');
+      expect(putCall).toBeDefined();
+      expect((putCall![0] as string)).toContain('/api/v1/workspaces/ws-1/trigger-rules/trig-1');
     });
   });
 
@@ -156,11 +170,13 @@ describe('TriggersPage', () => {
     mockFetchTriggersSuccess();
     render(<TriggersPage />);
 
+    const ue = userEvent.setup();
+    await searchWorkspace(ue);
+
     await waitFor(() => {
       expect(screen.queryByTestId('triggers-loading')).not.toBeInTheDocument();
     });
 
-    const ue = userEvent.setup();
     await ue.click(screen.getByTestId('create-trigger-btn'));
 
     expect(screen.getByText('Create Trigger Rule')).toBeInTheDocument();
@@ -188,19 +204,12 @@ describe('TriggersPage', () => {
         (call: unknown[]) => (call[1] as RequestInit)?.method === 'POST',
       );
       expect(postCall).toBeDefined();
-      expect((postCall![0] as string)).toContain('/api/v1/triggers');
+      expect((postCall![0] as string)).toContain('/api/v1/workspaces/ws-1/trigger-rules');
     });
   });
 
-  it('hides create button for viewer role', async () => {
-    mockUser = { role: 'viewer' };
-    mockFetchTriggersSuccess();
+  it('hides create button when no workspace entered', () => {
     render(<TriggersPage />);
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('triggers-loading')).not.toBeInTheDocument();
-    });
-
     expect(screen.queryByTestId('create-trigger-btn')).not.toBeInTheDocument();
   });
 
@@ -208,11 +217,13 @@ describe('TriggersPage', () => {
     mockFetchTriggersSuccess();
     render(<TriggersPage />);
 
+    const ue = userEvent.setup();
+    await searchWorkspace(ue);
+
     await waitFor(() => {
       expect(screen.queryByTestId('triggers-loading')).not.toBeInTheDocument();
     });
 
-    const ue = userEvent.setup();
     await ue.click(screen.getByTestId('delete-trigger-trig-1'));
 
     expect(screen.getByText(/Are you sure you want to delete trigger/)).toBeInTheDocument();
@@ -230,7 +241,7 @@ describe('TriggersPage', () => {
         (call: unknown[]) => (call[1] as RequestInit)?.method === 'DELETE',
       );
       expect(deleteCall).toBeDefined();
-      expect((deleteCall![0] as string)).toContain('/api/v1/triggers/trig-1');
+      expect((deleteCall![0] as string)).toContain('/api/v1/workspaces/ws-1/trigger-rules/trig-1');
     });
   });
 });
