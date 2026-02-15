@@ -12,10 +12,7 @@ import { AgentDetailPage } from './pages/AgentDetailPage';
 import { PromptsPage } from './pages/PromptsPage';
 import { MCPServersPage } from './pages/MCPServersPage';
 import { TrustPage } from './pages/TrustPage';
-import { TriggersPage } from './pages/TriggersPage';
 import { ModelConfigPage } from './pages/ModelConfigPage';
-import { ContextConfigPage } from './pages/ContextConfigPage';
-import { SignalsPage } from './pages/SignalsPage';
 import { WebhooksPage } from './pages/WebhooksPage';
 import { APIKeysPage } from './pages/APIKeysPage';
 import { UsersPage } from './pages/UsersPage';
@@ -52,10 +49,7 @@ export function App() {
                 <Route path="prompts" element={<PromptsPage />} />
                 <Route path="mcp-servers" element={<MCPServersPage />} />
                 <Route path="trust-rules" element={<TrustPage />} />
-                <Route path="trigger-rules" element={<TriggersPage />} />
                 <Route path="model-config" element={<ModelConfigPage />} />
-                <Route path="context-config" element={<ContextConfigPage />} />
-                <Route path="signal-polling" element={<SignalsPage />} />
                 <Route path="webhooks" element={<WebhooksPage />} />
                 <Route path="api-keys" element={<APIKeysPage />} />
                 <Route path="users" element={<UsersPage />} />

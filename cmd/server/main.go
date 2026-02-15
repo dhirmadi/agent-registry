@@ -111,10 +111,7 @@ func run() error {
 	mcpServerStore := store.NewMCPServerStore(pool)
 	trustRuleStore := store.NewTrustRuleStore(pool)
 	trustDefaultStore := store.NewTrustDefaultStore(pool)
-	triggerRuleStore := store.NewTriggerRuleStore(pool)
 	modelConfigStore := store.NewModelConfigStore(pool)
-	contextConfigStore := store.NewContextConfigStore(pool)
-	signalConfigStore := store.NewSignalConfigStore(pool)
 	webhookStore := store.NewWebhookStore(pool)
 
 	// Create webhook dispatcher
@@ -203,13 +200,10 @@ func run() error {
 	mcpServersHandler := api.NewMCPServersHandler(mcpServerStore, auditStore, encKey, dispatcher)
 	trustRulesHandler := api.NewTrustRulesHandler(trustRuleStore, auditStore, dispatcher)
 	trustDefaultsHandler := api.NewTrustDefaultsHandler(trustDefaultStore, auditStore, dispatcher)
-	triggerRulesHandler := api.NewTriggerRulesHandler(triggerRuleStore, auditStore, &agentExistsAdapter{store: agentStore}, dispatcher)
 	modelConfigHandler := api.NewModelConfigHandler(modelConfigStore, auditStore, dispatcher)
-	contextConfigHandler := api.NewContextConfigHandler(contextConfigStore, auditStore, dispatcher)
-	signalConfigHandler := api.NewSignalConfigHandler(signalConfigStore, auditStore, dispatcher)
 	webhooksHandler := api.NewWebhooksHandler(webhookStore, auditStore)
 	auditLogHandler := api.NewAuditHandler(auditStore)
-	discoveryHandler := api.NewDiscoveryHandler(agentStore, mcpServerStore, trustDefaultStore, modelConfigStore, contextConfigStore, signalConfigStore)
+	discoveryHandler := api.NewDiscoveryHandler(agentStore, mcpServerStore, trustDefaultStore, modelConfigStore)
 
 	// Set up router
 	router := api.NewRouter(api.RouterConfig{
@@ -222,10 +216,7 @@ func run() error {
 		MCPServers:    mcpServersHandler,
 		TrustRules:    trustRulesHandler,
 		TrustDefaults: trustDefaultsHandler,
-		TriggerRules:  triggerRulesHandler,
 		ModelConfig:   modelConfigHandler,
-		ContextConfig: contextConfigHandler,
-		SignalConfig:  signalConfigHandler,
 		Webhooks:      webhooksHandler,
 		Discovery:     discoveryHandler,
 		AuditLog:      auditLogHandler,
@@ -652,36 +643,6 @@ type userLookupAdapter struct {
 
 func (a *userLookupAdapter) GetMustChangePass(ctx context.Context, userID uuid.UUID) (bool, error) {
 	return a.store.GetMustChangePass(ctx, userID)
-}
-
-// agentExistsAdapter implements api.AgentLookupForAPI for trigger rule validation.
-type agentExistsAdapter struct {
-	store *store.AgentStore
-}
-
-func (a *agentExistsAdapter) AgentExists(ctx context.Context, agentID string) (bool, error) {
-	_, err := a.store.GetByID(ctx, agentID)
-	if err != nil {
-		if isStoreNotFound(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-func isStoreNotFound(err error) bool {
-	return err != nil && (fmt.Sprintf("%v", err) != "" &&
-		(containsStr(err.Error(), "NOT_FOUND")))
-}
-
-func containsStr(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 // subscriptionLoaderAdapter bridges store.WebhookStore to notify.SubscriptionLoader.

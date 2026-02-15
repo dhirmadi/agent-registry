@@ -95,19 +95,10 @@ export function AppLayout() {
         <NavItem isActive={isActive('/trust-rules')}>
           <NavLink to="/trust-rules">Trust Rules</NavLink>
         </NavItem>
-        <NavItem isActive={isActive('/trigger-rules')}>
-          <NavLink to="/trigger-rules">Trigger Rules</NavLink>
-        </NavItem>
       </NavGroup>
       <NavGroup title="Configuration">
         <NavItem isActive={isActive('/model-config')}>
           <NavLink to="/model-config">Model Config</NavLink>
-        </NavItem>
-        <NavItem isActive={isActive('/context-config')}>
-          <NavLink to="/context-config">Context Config</NavLink>
-        </NavItem>
-        <NavItem isActive={isActive('/signal-polling')}>
-          <NavLink to="/signal-polling">Signal Polling</NavLink>
         </NavItem>
       </NavGroup>
       <NavGroup title="System">

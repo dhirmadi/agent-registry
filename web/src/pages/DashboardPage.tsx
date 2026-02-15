@@ -15,7 +15,6 @@ import type { DiscoveryResponse } from '../types';
 interface DashboardCounts {
   agents: number;
   mcpServers: number;
-  signalSources: number;
 }
 
 export function DashboardPage() {
@@ -33,7 +32,6 @@ export function DashboardPage() {
           setCounts({
             agents: data.agents.length,
             mcpServers: data.mcp_servers.length,
-            signalSources: data.signal_config.length,
           });
         }
       } catch (err) {
@@ -76,7 +74,7 @@ export function DashboardPage() {
         Dashboard
       </Title>
       <Grid hasGutter>
-        <GridItem span={4}>
+        <GridItem span={6}>
           <Card data-testid="card-agents">
             <CardTitle>Agents</CardTitle>
             <CardBody>
@@ -84,19 +82,11 @@ export function DashboardPage() {
             </CardBody>
           </Card>
         </GridItem>
-        <GridItem span={4}>
+        <GridItem span={6}>
           <Card data-testid="card-mcp-servers">
             <CardTitle>MCP Servers</CardTitle>
             <CardBody>
               <span style={{ fontSize: '2rem', fontWeight: 700 }}>{counts?.mcpServers ?? 0}</span>
-            </CardBody>
-          </Card>
-        </GridItem>
-        <GridItem span={4}>
-          <Card data-testid="card-signal-sources">
-            <CardTitle>Signal Sources</CardTitle>
-            <CardBody>
-              <span style={{ fontSize: '2rem', fontWeight: 700 }}>{counts?.signalSources ?? 0}</span>
             </CardBody>
           </Card>
         </GridItem>

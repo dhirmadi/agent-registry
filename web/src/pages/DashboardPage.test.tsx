@@ -54,23 +54,6 @@ const mockDiscovery: DiscoveryResponse = {
   ],
   trust_defaults: [],
   model_config: {},
-  context_config: {},
-  signal_config: [
-    {
-      id: '1',
-      source: 'github',
-      poll_interval: '60s',
-      is_enabled: true,
-      updated_at: '2026-01-01T00:00:00Z',
-    },
-    {
-      id: '2',
-      source: 'jira',
-      poll_interval: '120s',
-      is_enabled: true,
-      updated_at: '2026-01-01T00:00:00Z',
-    },
-  ],
   fetched_at: '2026-01-01T00:00:00Z',
 };
 
@@ -121,15 +104,12 @@ describe('DashboardPage', () => {
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
 
-    // 2 agents, 1 MCP server, 2 signal sources
+    // 2 agents, 1 MCP server
     const agentsCard = screen.getByTestId('card-agents');
     expect(agentsCard).toHaveTextContent('2');
 
     const mcpCard = screen.getByTestId('card-mcp-servers');
     expect(mcpCard).toHaveTextContent('1');
-
-    const signalCard = screen.getByTestId('card-signal-sources');
-    expect(signalCard).toHaveTextContent('2');
   });
 
   it('shows error alert when API call fails', async () => {
