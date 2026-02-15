@@ -206,6 +206,7 @@ func run() error {
 	modelEndpointsHandler := api.NewModelEndpointsHandler(modelEndpointStore, auditStore, encKey, dispatcher)
 	auditLogHandler := api.NewAuditHandler(auditStore)
 	discoveryHandler := api.NewDiscoveryHandler(agentStore, mcpServerStore, trustDefaultStore, modelConfigStore, modelEndpointStore)
+	a2aHandler := api.NewA2AHandler(agentStore, cfg.ExternalURL)
 
 	// Set up router
 	router := api.NewRouter(api.RouterConfig{
@@ -222,6 +223,7 @@ func run() error {
 		ModelEndpoints: modelEndpointsHandler,
 		Webhooks:      webhooksHandler,
 		Discovery:     discoveryHandler,
+		A2A:           a2aHandler,
 		AuditLog:      auditLogHandler,
 		AuthMW:        authMW,
 		UserLookup:    &userLookupAdapter{store: userStore},

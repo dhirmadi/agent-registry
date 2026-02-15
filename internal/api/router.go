@@ -41,6 +41,7 @@ type RouterConfig struct {
 	ModelEndpoints *ModelEndpointsHandler
 	Webhooks      *WebhooksHandler
 	Discovery     *DiscoveryHandler
+	A2A           *A2AHandler
 	AuditLog      *AuditHandler
 	AuthMW        func(http.Handler) http.Handler
 	UserLookup    UserLookup             // For MustChangePassMiddleware (nil = no enforcement)
@@ -63,6 +64,11 @@ func NewRouter(cfg RouterConfig) chi.Router {
 	// Health routes (no auth required)
 	r.Get("/healthz", cfg.Health.Healthz)
 	r.Get("/readyz", cfg.Health.Readyz)
+
+	// A2A well-known endpoint (public, no auth required)
+	if cfg.A2A != nil {
+		r.Get("/.well-known/agent.json", cfg.A2A.GetWellKnownAgentCard)
+	}
 
 	// Auth routes
 	if cfg.Auth != nil {
@@ -149,8 +155,15 @@ func NewRouter(cfg RouterConfig) chi.Router {
 				// Read endpoints (viewer+)
 				r.Group(func(r chi.Router) {
 					r.Use(RequireRole("viewer", "editor", "admin"))
+					// A2A endpoints (must be before parameterized routes)
+					if cfg.A2A != nil {
+						r.Get("/a2a-index", cfg.A2A.GetA2AIndex)
+					}
 					r.Get("/", cfg.Agents.List)
 					r.Get("/{agentId}", cfg.Agents.Get)
+					if cfg.A2A != nil {
+						r.Get("/{agentId}/agent-card", cfg.A2A.GetAgentCard)
+					}
 					r.Get("/{agentId}/versions", cfg.Agents.ListVersions)
 					r.Get("/{agentId}/versions/{version}", cfg.Agents.GetVersion)
 				})
