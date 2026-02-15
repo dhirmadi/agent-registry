@@ -113,6 +113,52 @@ export interface TrustRule {
   updated_at: string;
 }
 
+// Model Endpoints
+export type ModelProvider = 'openai' | 'azure' | 'anthropic' | 'ollama' | 'custom';
+
+export interface ModelEndpoint {
+  id: string;
+  slug: string;
+  name: string;
+  provider: ModelProvider;
+  endpoint_url: string;
+  is_fixed_model: boolean;
+  model_name: string;
+  allowed_models: string[];
+  is_active: boolean;
+  workspace_id: string | null;
+  version: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ModelEndpointConfig {
+  temperature?: number;
+  max_tokens?: number;
+  max_output_tokens?: number;
+  top_p?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
+  context_window?: number;
+  history_token_budget?: number;
+  max_history_messages?: number;
+  max_tool_rounds?: number;
+  headers?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ModelEndpointVersion {
+  id: string;
+  endpoint_id: string;
+  version: number;
+  config: ModelEndpointConfig;
+  is_active: boolean;
+  change_note: string;
+  created_by: string;
+  created_at: string;
+}
+
 // Model Config
 export interface ModelConfig {
   id: string;
@@ -203,5 +249,6 @@ export interface DiscoveryResponse {
   mcp_servers: MCPServer[];
   trust_defaults: TrustDefault[];
   model_config: ModelConfig | Record<string, never>;
+  model_endpoints: ModelEndpoint[];
   fetched_at: string;
 }

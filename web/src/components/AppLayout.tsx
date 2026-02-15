@@ -97,8 +97,11 @@ export function AppLayout() {
         </NavItem>
       </NavGroup>
       <NavGroup title="Configuration">
+        <NavItem isActive={isActive('/model-endpoints')}>
+          <NavLink to="/model-endpoints">Model Endpoints</NavLink>
+        </NavItem>
         <NavItem isActive={isActive('/model-config')}>
-          <NavLink to="/model-config">Model Config</NavLink>
+          <NavLink to="/model-config">Model Config (Legacy)</NavLink>
         </NavItem>
       </NavGroup>
       <NavGroup title="System">

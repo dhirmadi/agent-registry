@@ -13,6 +13,8 @@ import { PromptsPage } from './pages/PromptsPage';
 import { MCPServersPage } from './pages/MCPServersPage';
 import { TrustPage } from './pages/TrustPage';
 import { ModelConfigPage } from './pages/ModelConfigPage';
+import { ModelEndpointsPage } from './pages/ModelEndpointsPage';
+import { ModelEndpointDetailPage } from './pages/ModelEndpointDetailPage';
 import { WebhooksPage } from './pages/WebhooksPage';
 import { APIKeysPage } from './pages/APIKeysPage';
 import { UsersPage } from './pages/UsersPage';
@@ -49,6 +51,8 @@ export function App() {
                 <Route path="prompts" element={<PromptsPage />} />
                 <Route path="mcp-servers" element={<MCPServersPage />} />
                 <Route path="trust-rules" element={<TrustPage />} />
+                <Route path="model-endpoints" element={<ModelEndpointsPage />} />
+                <Route path="model-endpoints/:slug" element={<ModelEndpointDetailPage />} />
                 <Route path="model-config" element={<ModelConfigPage />} />
                 <Route path="webhooks" element={<WebhooksPage />} />
                 <Route path="api-keys" element={<APIKeysPage />} />
